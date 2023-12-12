@@ -1,0 +1,11 @@
+Settings
+_________________________________________________________
+
+Npoints:		10064
+tf:				2.3 days
+RelTol:			0.0000001000000
+AbsTol:			0.0000010000000
+
+The Max Distance between Chaser and Reference Chaser is: 0.0154 km
+
+The Final Distance between Chaser and Target is: 1007.9087 km
