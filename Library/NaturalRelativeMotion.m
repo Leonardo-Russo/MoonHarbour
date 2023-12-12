@@ -1,6 +1,5 @@
-function dY = DynamicalModelRM(t, Y, EarthPPsMCI, SunPPsMCI, muE, muS, MoonPPsECI, ...
-                               deltaE, psiM, deltaM, t0, tf, omegaPPsLVLH, omegadotPPsLVLH)
-
+function dY = NaturalRelativeMotion(t, Y, ...
+                                    EarthPPsMCI, SunPPsMCI, muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH)
 % Description: this is the function with the Dynamical Model for the
 % Relative Motion.
 % 
@@ -21,14 +20,14 @@ function dY = DynamicalModelRM(t, Y, EarthPPsMCI, SunPPsMCI, muE, muS, MoonPPsEC
 % t0 = initial time
 % tf = final time
 % XtPPsMCI = pp struct for the interpolation of target state in MCI
-% omegaPPsLVLH = pp struct for the interpolation of LVLH frame angular velocity
+% omegadotPPsLVLH = pp struct for the interpolation of LVLH frame angular acceleration
 % 
 % Outputs:
-% dRHO_LVLH = derivatives [rho, rhodot] state in LVLH
+% dY = derivative of the state vector.
 % 
 % 
 % Note:
-% In the Dynamical Model equations we need all vectors represented in the
+% In the Relative Motion equations we need all vectors represented in the
 % target centered LVLH reference frame.
 
 % Retrieve Global Variables

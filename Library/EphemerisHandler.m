@@ -1,5 +1,5 @@
 function [X0_DSG, COE0, MEE0, EarthPPsMCI, DSGPPsMCI, SunPPsMCI, MoonPPsECI, time, t0,...
-          tf, Npoints] = EphemerisHandler(deltaE, psiM, deltaM, Npoints, Nperiods)
+          tf, Npoints] = EphemerisHandler(deltaE, psiM, deltaM, Npoints, date0, datef)
 % Description: this function creates the necessary structures to continue
 % witht the trajectory propagation. In order to reduce computational
 % effort, it creates subvectors of Npoints from the original states and
@@ -24,33 +24,38 @@ function [X0_DSG, COE0, MEE0, EarthPPsMCI, DSGPPsMCI, SunPPsMCI, MoonPPsECI, tim
 % tf = final time
 
 % Load Data from Ephemeris - states are provided in ECI
-load('Ephemeris.mat', 'stateDSG', 'stateMoon', 'stateSun', 'time');
+load('ephemeris_3M_17_27_05_2025.mat', 'stateDSG', 'stateMoon', 'stateSun', 'time');
 
 % Recall Global Variables
 global DU TU muM Rm
 
-% Define DSG Orbital Period
-T_DSG = 6.4;        % days
-Day = 86400;        % s
+Dsol = 86400;       % s
 
-% Find the Index of tf
-Tf = (Nperiods*T_DSG)*Day + time(1);
-tf_idx = find(time >= Tf, 1, "first");
+% Look for Initial and Final times
+t0_sharp = juliandate(date0)*Dsol;
+tf_sharp = juliandate(datef)*Dsol;
+
+t0 = interp1(time, time, t0_sharp, 'nearest');
+t0_idx = find(time == t0);
+
+tf = interp1(time, time, tf_sharp, 'nearest');
+tf_idx = find(time == tf); 
 
 % Retrieve Data from Ephemeris
-stateDSG_ECI = stateDSG;
-stateMoon_ECI = stateMoon;
-stateSun_ECI = stateSun;
-stateEarth_ECI = zeros(length(time), 6);
+stateDSG_ECI = stateDSG(t0_idx : tf_idx, :);
+stateMoon_ECI = stateMoon(t0_idx : tf_idx, :);
+stateSun_ECI = stateSun(t0_idx : tf_idx, :);
+stateEarth_ECI = zeros(length(t0_idx : tf_idx), 6);
+time = time(t0_idx : tf_idx);
 
 % Set upper limit to Npoints
-if Npoints > tf_idx
-    Npoints = tf_idx;
-    fprintf('Note: the n° of points for the interpolation exceeded the n° of total points, therefore it has been set as:\nNpoints = %.0f\n', Npoints);
+if Npoints > tf_idx - t0_idx
+    Npoints = tf_idx - t0_idx;
+    fprintf('Note! The n° of points for the interpolation exceeded \nthe n° of total points, therefore it has been set as:\nNpoints = %.0f\n', Npoints);
 end
 
 % Create a Data Subset 
-indices = round(linspace(1, tf_idx, Npoints)');
+indices = round(linspace(1, tf_idx - t0_idx, Npoints)');
 
 time = time(indices);
 stateDSG_ECI = stateDSG_ECI(indices, :);
@@ -73,12 +78,12 @@ t0 = time(1);
 tf = time(end);
 
 % Initialize Local Variables
-stateEarth_MCI = zeros(length(time), 6);
-stateDSG_MCI = zeros(length(time), 6);
-stateSun_MCI = zeros(length(time), 6);
+stateEarth_MCI = zeros(Npoints, 6);
+stateDSG_MCI = zeros(Npoints, 6);
+stateSun_MCI = zeros(Npoints, 6);
 
 
-for i = 1 : length(time)
+for i = 1 : Npoints
     
     % Retrieve ECI Position and Velocity Vectors
     rDSG_ECI = stateDSG_ECI(i, 1:3)';

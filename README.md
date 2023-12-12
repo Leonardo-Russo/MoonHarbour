@@ -22,4 +22,4 @@ Rendezvous and docking are two critical phases in spaceflight involving the appr
 MoonHarbour is open to collaboration with international space agencies, research institutions, and private sector partners.
 
 ## Contact
-For more information or to discuss potential collaborations, please contact [Your Contact Information].
+For more information or to discuss potential collaborations, please contact [me](mailto:leonardo.rxsso@gmail.com).
