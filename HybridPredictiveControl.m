@@ -46,8 +46,8 @@ function [dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,
     
     %----------------------- PERTURBING ACCELERATION --------------------------
     
-    a34B = ThirdBody(MEE_target, t, ppEarthMCI, ppSunMCI, muE, muS, timespan, muM);
-    aG = GravPert(MEE_target, ppMoonECI, t, timespan, muM, deltaE, psiM, deltaM);
+    a34B = ThirdFourthBody(MEE_target', t, ppEarthMCI, ppSunMCI, muE, muS);
+    aG = GravPert(MEE_target', ppMoonECI, t, timespan, muM, deltaE, psiM, deltaM);
     
     aP = a34B + aG;
     
@@ -81,7 +81,7 @@ function [dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,
     R_MCI2targetLVLH = R3(theta)*R1(i)*R3(Omega);
     
     % Target perturbations in target LVLH frame
-    a34B_t = ThirdBody_rel(MEE_target, COE_target, t, ppEarthMCI, ppSunMCI, muE, muS, timespan, muM);
+    a34B_t = ThirdFourthBody_Relative(MEE_target, COE_target, t, ppEarthMCI, ppSunMCI, muE, muS);
     aG_t = GravPert(MEE_target, ppMoonECI, t, timespan, muM, deltaE, psiM, deltaM);
     aP_t = a34B_t + aG_t;
     
@@ -149,7 +149,7 @@ function [dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,
     
     
     % Chaser perturbations in target LVLH frame
-    a34B_c = ThirdBody_rel(MEE_chaser, COE_target, t, ppEarthMCI, ppSunMCI, muE, muS, timespan, muM);
+    a34B_c = ThirdFourthBody_Relative(MEE_chaser, COE_target, t, ppEarthMCI, ppSunMCI, muE, muS);
     aG = GravPert(MEE_chaser, ppMoonECI, t, timespan, muM, deltaE, psiM, deltaM);
     aG_c = R_MCI2targetLVLH*R_chaserLVLH2MCI*aG;
     

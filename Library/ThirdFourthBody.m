@@ -4,8 +4,8 @@ function a34B_LVLH = ThirdFourthBody(MEE, t, EarthPPsMCI, SunPPsMCI, muE, muS)
 global muM Rm TU DU
 
 % Retrieve COE and MCI States
-COE = MEE2COE(MEE'); 
-X_MCI = COE2rvPCI(COE, muM)';
+COE = MEE2COE(MEE')'; 
+X_MCI = COE2rvPCI(COE', muM)';
 rSC_MCI = X_MCI(1:3);
 
 % Define MCI2LVLH Rotation Matrices

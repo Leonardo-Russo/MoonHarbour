@@ -36,7 +36,7 @@ G = GravMod(x1t, x2t, x3t, x4t, x5t, x6t, muM, eta);
 
 %----------------------- PERTURBING ACCELERATION --------------------------
 
-a34B = ThirdBody(MEE_target, t, ppEarthMCI, ppSunMCI, muE, muS, timespan, muM);
+a34B = ThirdFourthBody(MEE_target', t, ppEarthMCI, ppSunMCI, muE, muS);
 aG = GravPert(MEE_target, ppMoonECI, t, timespan, muM, deltaE, psiM, deltaM);
 
 aP = a34B + aG;
@@ -71,7 +71,7 @@ p = a*(1-e^2);
 R_MCI2targetLVLH = R3(theta)*R1(i)*R3(Omega);
 
 % Target perturbations in target LVLH frame
-a34B_t = ThirdBody_rel(MEE_target, COE_target, t, ppEarthMCI, ppSunMCI, muE, muS, timespan, muM);
+a34B_t = ThirdFourthBody_Relative(MEE_target, COE_target, t, ppEarthMCI, ppSunMCI, muE, muS);
 aG_t = GravPert(MEE_target, ppMoonECI, t, timespan, muM, deltaE, psiM, deltaM);
 aP_t = a34B_t + aG_t;
 
@@ -140,7 +140,7 @@ MEE_chaser = Class2Equin(COE_chaser);
 
 
 % Chaser perturbations in target LVLH frame
-a34B_c = ThirdBody_rel(MEE_chaser, COE_target, t, ppEarthMCI, ppSunMCI, muE, muS, timespan, muM);
+a34B_c = ThirdFourthBody_Relative(MEE_chaser, COE_target, t, ppEarthMCI, ppSunMCI, muE, muS);
 aG = GravPert(MEE_chaser, ppMoonECI, t, timespan, muM, deltaE, psiM, deltaM);
 aG_c = R_MCI2targetLVLH*R_chaserLVLH2MCI*aG;
 
