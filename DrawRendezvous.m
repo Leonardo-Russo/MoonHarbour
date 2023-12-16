@@ -1,9 +1,8 @@
 function DrawRendezvous(Xt_MCI, Xc_MCI, bookmark, opt)
-% Description: create a 3D animation of the rendezvous procedure.
+% Description: Create a 3D animation of the rendezvous procedure and save it as an MP4 video.
 
-
-gifFilename = 'rendezvous.gif';
-fps = 1000;
+videoFilename = 'rendezvous.mp4';
+fps = 30; % Frames per second for the video
 
 Xt = Xt_MCI(:, 1);
 Yt = Xt_MCI(:, 2);
@@ -20,7 +19,6 @@ TrajC = plot3(Xc(1), Yc(1), Zc(1), 'Color', '#ff7403', 'Linestyle', '-', 'LineWi
 T = plot3(Xt(1), Yt(1), Zt(1), 'Color', '#3232a8', 'LineStyle', 'none', 'Marker', '.', 'MarkerSize', 15);
 C = plot3(Xc(1), Yc(1), Zc(1), 'Color', '#d6491e', 'LineStyle', 'none', 'Marker', '.', 'MarkerSize', 15);
 
-
 grid on
 axis equal
 xlabel('$x$', 'interpreter', 'latex', 'fontsize', 12)
@@ -30,6 +28,12 @@ view(3)
 
 N = size(Xt_MCI, 1);
 
+if opt.saveplots
+    % Set up the video writer
+    writerObj = VideoWriter(videoFilename, 'MPEG-4');
+    writerObj.FrameRate = fps;
+    open(writerObj);
+end
 
 for i = 1 : N
     
@@ -47,26 +51,20 @@ for i = 1 : N
     xlim([Xc(i) - camdist, Xc(i) + camdist]);
     ylim([Yc(i) - camdist, Yc(i) + camdist]);
     zlim([Zc(i) - camdist, Zc(i) + camdist]);
-    
+
     if opt.saveplots
-
-        % Capture the plot as a frame
+        % Capture the plot as a frame and write to the video file
         frame = getframe(gcf);
-        [imind, cm] = rgb2ind(frame.cdata, 256);
-        
-        % Write to the GIF file
-        if i == 1
-            imwrite(imind, cm, gifFilename, 'gif', 'Loopcount', inf, 'DelayTime', 1/fps);
-        else
-            imwrite(imind, cm, gifFilename, 'gif', 'WriteMode', 'append', 'DelayTime', 1/fps);
-        end
-
+        writeVideo(writerObj, frame);
     else
-
         pause(1/fps);
-
     end
 
 end
 
+if opt.saveplots
+    close(writerObj);
 end
+
+end
+
