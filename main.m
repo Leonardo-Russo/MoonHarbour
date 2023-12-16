@@ -64,61 +64,57 @@ if ~skip
      EphemerisHandler(deltaE, psiM, deltaM, opt.N, date0, datef);
     
     % Combine the Target and Chaser States into Y State
-    Y0 = [MEE0t; RHO0_LVLH];
+    TC0 = [MEE0t; RHO0_LVLH];
     
     % Open log file
     log = fopen('Data/log.txt', 'w+');
     
     % Define the timespan for the propagation
-    tspan = linspace(t0, tf, opt.N);
+    tspan_ref = linspace(t0, tf, opt.N);
+    dt_ref = tspan_ref(2) - tspan_ref(1);
     
     
-    %% Propagate Target Trajectory using MEE
+    %% Propagate Reference Target Trajectory using MEE
     
     % Perform the Propagation of the Target Trajectory
     pbar = waitbar(0, 'Performing the Target Trajectory Propagation');
-    [~, MEEt] = ode113(@(t, MEE) DynamicalModelMEE(t, MEE, EarthPPsMCI, SunPPsMCI, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf), tspan, MEE0t, OptionsODE);
+    [~, MEEt_ref] = ode113(@(t, MEE) DynamicalModelMEE(t, MEE, EarthPPsMCI, SunPPsMCI, ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf), tspan_ref, MEE0t, OptionsODE);
     close(pbar);
     
     % Conversion from MEE to COE
-    COEt = MEE2COE(MEEt);
+    COEt_ref = MEE2COE(MEEt_ref);
     
     % Conversion from COE to MCI
-    Xt_MCI = COE2rvPCI(COEt, muM);
+    Xt_MCI_ref = COE2rvPCI(COEt_ref, muM);
     
     % Interpolate the Angular Velocity of LVLH wrt MCI
-    [omegaPPsLVLH, omegadotPPsLVLH] = TargetHandler(Xt_MCI, COEt, MEEt, tspan, ...
+    [~, omegadotPPsLVLH] = TargetHandler(Xt_MCI_ref, COEt_ref, MEEt_ref, tspan_ref, ...
     EarthPPsMCI, SunPPsMCI, MoonPPsECI, deltaE, psiM, deltaM, muE, muS);
-    
-    % Visualize Target Trajectory during R&D
-    figure('name', 'Target MCI Trajectory during Rendezvous and Docking')
-    T = DrawTrajMCI3D(Xt_MCI(:, 1:3)*DU);
     
     
     %% Backwards Propagation from Final Conditions
     
-    % Define the Backwards tspan
+    % Define the Backwards Drift tspan
     tspan_back = linspace(tf, t0 + (tf-t0)/2, opt.N);
     
-    % Define Backward Propagation Settings
-    optODE_back = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) backstop(t, Y));
+    % Define Backward Drift Propagation Settings
+    optODE_back = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_back(t, Y));
     
     % Define Final Conditions
-    MEEft = MEEt(end, :)';
-    Yf = [MEEft; RHOf_LVLH];
+    MEEft = MEEt_ref(end, :)';
+    TCf_backdrift = [MEEft; RHOf_LVLH];
     
     % Perform the Backpropagation of Target and Chaser Trajectories
     pbar = waitbar(0, 'Performing the Chaser Trajectory Propagation');
-    [tspan_back, Y] = ode113(@(t, Y) NaturalRelativeMotion(t, Y, EarthPPsMCI, SunPPsMCI, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_back, Yf, optODE_back);
+    [tspan_back, TC_backdrift] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_back, TCf_backdrift, optODE_back);
     close(pbar);
     
     % Retrieve the States and epoch for Final Drift
-    Ydrift = Y(end, :)';
-    tdrift = tspan_back(end);   % !!! there's a 2e-4 difference
+    TC0_backdrift = TC_backdrift(end, :)';
+    t0_backdrift = tspan_back(end);             % !!! there's a 2e-4 difference
     
-    % SHOW THE EVOLUTION IN THE DRIFT -> CREATE A DOCKING ANIMATION BASICALLY
     save("Data/temp/First Part.mat");
 
 else
@@ -131,25 +127,23 @@ end
 %% Generate the Reference Trajectory
 
 % Set the Via Points and Interpolate the Reference Trajectory
-[ppXd, ViaPoints, t_via] = ChebyschevReferenceTrajectory(Y0, Ydrift, t0, tdrift);
-
-% Define Forward Propagation Settings
-optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
+[ppXd, ViaPoints, t_via] = ChebyschevReferenceTrajectory(TC0, TC0_backdrift, t0, t0_backdrift);
 
 % Control Settings
-prediction_step = 120;              % prediction interval in seconds -> one prediction every 2 minutes
-Delta_t = prediction_step/TU;
-len0 = fix(seconds(total_time)/prediction_step);      % length of the predictive controls
-checkTimes = zeros(len0, 1);        % gets all the times at which one should check in continue to saturate by future prediction
+prediction_interval = 120;                  % s - one prediction every 2 minutes
+prediction_dt = prediction_interval/TU;     % adim - prediction interval adimensionalized
 
-for p = 1 : len0
-    checkTimes(p) = t0 + (p-1) * Delta_t;
+prediction_maxlength = fix(seconds(total_time)/prediction_interval);        % max length of the predictive controls
+check_times = zeros(prediction_maxlength, 1);           % gets all the times at which one should check in continue to saturate by future prediction
+
+for k = 1 : prediction_maxlength
+    check_times(k) = t0 + (k-1) * prediction_dt;        % compute the check_times vector
 end
 
-Delta_integration = (30*60)/TU;     % predictive propagation of 30 min
+prediction_delta = (30*60)/TU;      % predictive propagation of 30 min forward
+N_inner = round(prediction_delta/dt_ref) - 1;       % n° of points in the inner propagation
 
-N_inner_integration = round(Delta_integration/(tspan(2)-tspan(1))) - 1;
-
+% Parallel Computing Utils
 fileNum = 1;
 parallel_path = ['Data/temp/VelocitySim' num2str(fileNum) '.mat'];
 
@@ -158,49 +152,77 @@ parallel_path = ['Data/temp/VelocitySim' num2str(fileNum) '.mat'];
 
 % Define Initial Conditions
 x70 = 1;                % initial mass ratio
-S0 = [Y0; x70];         % initial state
+TCC0 = [TC0; x70];      % initial TargetControlledChaser State
 
 % Perform Rendezvous Propagation
-[tspan_control, ControlledRelativeState] = ode_Ham(@(t, state) HybridPredictiveControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
-     muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, ppXd, DU, TU, checkTimes, Delta_integration, N_inner_integration, parallel_path),...
-     [t0, tdrift], S0, opt.N);
+[tspan_ctrl, TCC] = ode_Ham(@(t, state) HybridPredictiveControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
+     muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, ppXd, DU, TU, check_times, prediction_delta, N_inner, parallel_path),...
+     [t0, t0_backdrift], TCC0, opt.N);
+
+% Retrieve Final Mass Ratio Value
+x7f = TCC(end, 13);
+
+
+% Define Backward Drift Propagation Settings
+optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_fwd(t, Y));
+
+% Define the Forward Drift tspan
+tspan_drift = linspace(tspan_ctrl(end), tf, opt.N/10);
+
+% Define Initial Conditions
+TC0_drift = TCC(end, 1:12);
+
+% Perform the Final Natural Drift of the Chaser
+pbar = waitbar(0, 'Performing the Chaser Trajectory Propagation');
+[tspan_drift, TC_drift] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
+muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_drift, TC0_drift, optODE_fwd);
+close(pbar);
+
+save('Data/temp/Propagation Completed.mat');
+
+
+%% Post-Processing
+
+load('Data/temp/Propagation Completed.mat');
+
+% Stack the States
+TCC_drift = [TC_drift, x7f*ones(length(tspan_drift), 1)];
+TCC = [TCC; TCC_drift];
+tspan = [tspan_ctrl; tspan_drift];
 
 % Retrieve States from Propagation
-MEEt = ControlledRelativeState(:, 1:6);
-RHO_LVLH = ControlledRelativeState(:, 7:12);
-x7 = ControlledRelativeState(:, 13);
+MEEt = TCC(:, 1:6);
+RHO_LVLH = TCC(:, 7:12);
+x7 = TCC(:, 13);
 
 % Retrieve Target MCI State
 COEt = MEE2COE(MEEt);
 Xt_MCI = COE2rvPCI(COEt, muM);
 
-
-%% Post-Processing
-
 % Initialize Post-Processing Variables
-RHO_MCI = zeros(length(tspan_control), 6);
-Xc_MCI = zeros(length(tspan_control), 6);
-dist = zeros(length(tspan_control), 1);
+RHO_MCI = zeros(length(tspan), 6);
+Xc_MCI = zeros(length(tspan), 6);
+dist = zeros(length(tspan), 1);
 
 % Perform Post-Processing
 pbar = waitbar(0, 'Performing the Final Post-Processing');
 for i = 1 : size(RHO_LVLH, 1)
     
-    RHO_MCI(i, :) = rhoLVLH2MCI(RHO_LVLH(i, :)', Xt_MCI(i, :)', tspan_control(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM)';
+    RHO_MCI(i, :) = rhoLVLH2MCI(RHO_LVLH(i, :)', Xt_MCI(i, :)', tspan(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM)';
     Xc_MCI(i, :) = Xt_MCI(i, :) + RHO_MCI(i, :);
 
     dist(i) = norm(RHO_MCI(i, 1:3));
 
-    waitbarMessage = sprintf('Final Post-Processing Progress: %.2f%%\n', i/length(tspan_control)*100);
-    waitbar(i/length(tspan_control), pbar, waitbarMessage);      % update the waitbar
+    waitbarMessage = sprintf('Final Post-Processing Progress: %.2f%%\n', i/length(tspan)*100);
+    waitbar(i/length(tspan), pbar, waitbarMessage);      % update the waitbar
 
 end
 close(pbar)
 
-save('Data/temp/Post-Processing.mat');
-
 
 %% Visualize the Results
+
+% SHOW THE EVOLUTION IN THE DRIFT -> CREATE A DOCKING ANIMATION BASICALLY
 
 % Draw the Target, Chaser and Reference Chaser Trajectories in MCI
 figure('name', 'Trajectory in MCI Space')
@@ -220,10 +242,10 @@ if opt.saveplots
     saveas(gcf, strcat('Output/Trajectory LVLH.jpg'))
 end
 
+% tspan = tspan_ctrl;
+% t0 = tspan(1);
 
 % Visualize LVLH State
-tspan = tspan_control;
-t0 = tspan(1);
 figure('name', 'Chaser LVLH State')
 subplot(2, 1, 1)
 plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 1)*DU)
@@ -250,17 +272,6 @@ if opt.saveplots
     saveas(gcf, strcat('Output/Chaser LVLH State.jpg'))
 end
 
-
-return
-
-
-% Final natural propagation to see the real drift obtained
-initialNaturalState = ControlledRelativeState(end,1:12);
-options_nat2 = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t,state)stopper2(t,state,DU));
-tspan_nat2 = linspace(tspan_control(end),tf, Npoints/10);
-[t_drift, NaturalRelativeState2] = ode113(@(t, state) NaturalRelativeMotion(t, state, ppEarthMCI, ppSunMCI, muM, ...
-    muE, muS, time, ppMoonECI, deltaE, psiM, deltaM, ppOmegaVect), tspan_nat2,...
-    initialNaturalState, options_nat2);
 
 
 

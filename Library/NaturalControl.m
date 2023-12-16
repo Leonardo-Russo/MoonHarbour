@@ -2,6 +2,9 @@ function[dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,.
     rho_d_dot_vect, rho_d_ddot_vect, f_norm] = NaturalControl(t, state, ppEarthMCI, ppSunMCI, muM, muE, muS, ...
     timespan, ppMoonECI, deltaE, psiM, deltaM, ppOmegadotVect, t0, ppXd, kp, DU, TU)
 
+% Credits: This function was developed building upon a core reference 
+% provided by Dario Sanna.
+
 %---------------------------PRE-ALLOCATION---------------------------------
 dstate = zeros(13,1); 
 

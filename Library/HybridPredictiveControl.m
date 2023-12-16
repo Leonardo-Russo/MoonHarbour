@@ -2,6 +2,9 @@ function [dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,
     rho_d_dot_vect, rho_d_ddot_vect, f, f_norm, kp_out, k_type] = HybridPredictiveControl(t, state, ppEarthMCI, ppSunMCI, muM, muE, muS, ...
     timespan, ppMoonECI, deltaE, psiM, deltaM, ppOmegadotVect, t0, ppXd, DU, TU, checkTimes, Delta_t, N_inner_integration, P)
 
+% Credits: This function was developed building upon a core reference 
+% provided by Dario Sanna.
+
     persistent kp verifiedTimes index stopPrediction u_max
 
     if t == t0

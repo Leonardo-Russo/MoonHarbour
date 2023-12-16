@@ -5,6 +5,9 @@ function[a34B_ORB] = ThirdFourthBody_Relative(EquinElem,COE_target, t, ppEarthMC
 % projecting it on the LVLH reference frame centered on the virtual
 % vehicle, used in relative motion.
 
+% Credits: This function was developed building upon a core reference 
+% provided by Dario Sanna.
+
 global muM
 
 %-------------------------- CLASSICAL ELEMENTS ----------------------------
