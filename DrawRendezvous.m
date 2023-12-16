@@ -2,7 +2,11 @@ function DrawRendezvous(Xt_MCI, Xc_MCI, bookmark, opt)
 % Description: Create a 3D animation of the rendezvous procedure and save it as an MP4 video.
 
 videoFilename = 'rendezvous.mp4';
-fps = 30; % Frames per second for the video
+fps = 60; % Frames per second for the video
+
+az0 = 140;
+azf = az0 + 360*1.5;
+el = 30;
 
 Xt = Xt_MCI(:, 1);
 Yt = Xt_MCI(:, 2);
@@ -24,9 +28,11 @@ axis equal
 xlabel('$x$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$y$', 'interpreter', 'latex', 'fontsize', 12)
 zlabel('$z$', 'interpreter', 'latex', 'fontsize', 12)
-view(3)
+view([az0, el])
 
 N = size(Xt_MCI, 1);
+
+az = linspace(az0, azf, N);
 
 if opt.saveplots
     % Set up the video writer
@@ -51,6 +57,8 @@ for i = 1 : N
     xlim([Xc(i) - camdist, Xc(i) + camdist]);
     ylim([Yc(i) - camdist, Yc(i) + camdist]);
     zlim([Zc(i) - camdist, Zc(i) + camdist]);
+
+    view([az(i), el])
 
     if opt.saveplots
         % Capture the plot as a frame and write to the video file

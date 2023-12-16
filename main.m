@@ -219,7 +219,7 @@ clc
 load('Data/temp/Post-Processing.mat');
 
 % SHOW THE EVOLUTION IN THE DRIFT -> CREATE A DOCKING ANIMATION BASICALLY
-figure('name', 'Rendezvous and Docking Animation')
+figure('name', 'Rendezvous and Docking Animation', 'WindowState', 'maximized')
 DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, bookmark, opt)
 
 % % Draw the Target, Chaser and Reference Chaser Trajectories in MCI
