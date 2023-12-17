@@ -1,4 +1,4 @@
-%% Relative Motion Propagator - Leonardo Russo
+%% Moon Harbour Project - Leonardo Russo
 
 close all
 clear
@@ -15,6 +15,7 @@ addpath('Data/temp/')
 % Introduce Options Structure
 opt = struct('name', "Progator Options");
 opt.saveplots = true;
+opt.create_animation = false;
 
 % Define options for ode113()
 opt.RelTolODE = 1e-7;
@@ -218,55 +219,59 @@ clc
 
 load('Data/temp/Post-Processing.mat');
 
-% SHOW THE EVOLUTION IN THE DRIFT -> CREATE A DOCKING ANIMATION BASICALLY
+if opt.create_animation
 figure('name', 'Rendezvous and Docking Animation', 'WindowState', 'maximized')
-DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, bookmark, opt)
+DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, RHO_LVLH, bookmark, opt)
+end
 
-% % Draw the Target, Chaser and Reference Chaser Trajectories in MCI
-% figure('name', 'Trajectory in MCI Space')
-% T = DrawTrajMCI3D(Xt_MCI(:, 1:3)*DU, '#d1d1d1', '-.');
-% C = DrawTrajMCI3D(Xc_MCI(:, 1:3)*DU);
-% legend([T, C], {'Target Trajectory', 'Chaser Trajectory'}, 'location', 'best');
-% view([140, 30]);
-% if opt.saveplots
-%     saveas(gcf, strcat('Output/Trajectory MCI.jpg'))
-% end
-% 
-% 
-% % Plot the evolution of the Chaser State in LVLH
-% figure('name', 'Chaser Trajectory in LVLH Space')
-% C_LVLH = DrawTrajLVLH3D(RHO_LVLH(:, 1:3)*DU);
-% if opt.saveplots
-%     saveas(gcf, strcat('Output/Trajectory LVLH.jpg'))
-% end
-% 
-% 
-% % Visualize LVLH State
-% figure('name', 'Chaser LVLH State')
-% subplot(2, 1, 1)
-% plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 1)*DU)
-% hold on
-% grid on
-% plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 2)*DU)
-% plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 3)*DU)
-% title('Chaser LVLH Position')
-% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-% ylabel('$[km]$', 'interpreter', 'latex', 'fontsize', 12)
-% legend('$r$', '$\theta$', '$h$', 'interpreter', 'latex', 'fontsize', 12, 'location', 'best')
-% 
-% subplot(2, 1, 2)
-% plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 4)*DU/TU)
-% hold on
-% grid on
-% plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 5)*DU/TU)
-% plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 6)*DU/TU)
-% title('Chaser LVLH Velocity')
-% xlabel('$t \ [days]$', 'interpreter', 'latex', 'fontsize', 12)
-% ylabel('$[km/s]$', 'interpreter', 'latex', 'fontsize', 12)
-% legend('$\dot{r}$', '$\dot{\theta}$', '$\dot{h}$', 'interpreter', 'latex', 'fontsize', 12, 'location', 'best')
-% if opt.saveplots
-%     saveas(gcf, strcat('Output/Chaser LVLH State.jpg'))
-% end
+
+% Draw the Target, Chaser and Reference Chaser Trajectories in MCI
+figure('name', 'Trajectory in MCI Space')
+T = DrawTrajMCI3D(Xt_MCI(:, 1:3)*DU, '#d1d1d1', '-.');
+C = DrawTrajMCI3D(Xc_MCI(:, 1:3)*DU);
+legend([T, C], {'Target Trajectory', 'Chaser Trajectory'}, 'location', 'best');
+view([140, 30]);
+title('Target and Chaser MCI Trajectories')
+if opt.saveplots
+    saveas(gcf, strcat('Output/Trajectory MCI.jpg'))
+end
+
+
+% Plot the evolution of the Chaser State in LVLH
+figure('name', 'Chaser Trajectory in LVLH Space')
+C_LVLH = DrawTrajLVLH3D(RHO_LVLH(:, 1:3)*DU);
+title('Chaser LVLH Trajectory')
+if opt.saveplots
+    saveas(gcf, strcat('Output/Trajectory LVLH.jpg'))
+end
+
+
+% Visualize LVLH State
+figure('name', 'Chaser LVLH State')
+subplot(2, 1, 1)
+plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 1)*DU)
+hold on
+grid on
+plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 2)*DU)
+plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 3)*DU)
+title('Chaser LVLH Position')
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$[km]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('$r$', '$\theta$', '$h$', 'interpreter', 'latex', 'fontsize', 12, 'location', 'best')
+
+subplot(2, 1, 2)
+plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 4)*DU/TU)
+hold on
+grid on
+plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 5)*DU/TU)
+plot((tspan - t0)*TU*sec2hrs, RHO_LVLH(:, 6)*DU/TU)
+title('Chaser LVLH Velocity')
+xlabel('$t \ [days]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$[km/s]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('$\dot{r}$', '$\dot{\theta}$', '$\dot{h}$', 'interpreter', 'latex', 'fontsize', 12, 'location', 'best')
+if opt.saveplots
+    saveas(gcf, strcat('Output/Chaser LVLH State.jpg'))
+end
 
 
 
