@@ -1,4 +1,3 @@
-
 # MoonHarbour
 
 ## Overview
@@ -11,6 +10,9 @@ The Lunar Gateway is an essential component of lunar exploration. It serves as a
 Rendezvous and docking are two critical phases in spaceflight involving the approach and mechanical joining of two spacecraft. This complex process includes:
 - **Rendezvous**: Maneuvering the spacecraft to approach each other in orbit.
 - **Docking**: Physically connecting the spacecraft to transfer crew or cargo.
+
+## Rendezvous Procedure Animation
+![Rendezvous Procedure](Output/rendezvous.gif)
 
 ## Objectives of MoonHarbour
 1. **Precise Maneuvering**: Develop and implement precise orbital maneuvering techniques for successful rendezvous.
