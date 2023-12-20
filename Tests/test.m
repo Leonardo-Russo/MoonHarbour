@@ -3,12 +3,13 @@ clear
 clc
 
 
-obj = renderSTL('dragon2.stl');
+obj = renderSTL('ISS_2016.stl');
 
 N = size(obj.Vertices, 1);
 
 r = [1000, 0, 0]';
 
+input('Press Enter to start moving.\n')
 for i = 1 : N
 
     obj.Vertices(i, :) = obj.Vertices(i, :) + r';
