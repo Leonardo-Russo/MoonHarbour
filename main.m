@@ -3,7 +3,7 @@
 close all
 clear
 clc
-
+                                                                                
 addpath('Library/')
 addpath('Library/Dario/')
 addpath('Data/')
@@ -42,11 +42,13 @@ Dsol = 86400;                                           % s
 sec2hrs = 1/3600;                                       % hrs
 
 % Define Time Domain
-date0 = datetime('2025-05-23 9:56:10'); 
+date0 = datetime('2025-05-23 9:56:10');
 datef = datetime('2025-05-23 21:56:10');    % @ periselenium
 total_time = datef - date0;
 
 % Define the Chaser Initial Conditions
+% Cerca di tenere questa condizione: norm(rhodot_LVLH) = 1 m/s -> il tuning
+% dei parametri è stato fatto su questa ipotesi.
 RHO0_LVLH = [1.5, 0, 0, 0, -1e-3, -1e-3]';                  % km, km/s
 RHO0_LVLH = [RHO0_LVLH(1:3)/DU; RHO0_LVLH(4:6)/DU*TU];      % adim
 
@@ -59,7 +61,7 @@ opt.N = 1000;
 
 % Interpolate the Ephemeris and Retrieve Target's Initial State
 [X0t_MCI, COE0t, MEE0t, EarthPPsMCI, DSGPPsMCI, SunPPsMCI, MoonPPsECI, time, t0, tf, opt.N] = ...
- EphemerisHandler(deltaE, psiM, deltaM, opt.N, date0, datef);
+    EphemerisHandler(deltaE, psiM, deltaM, opt.N, date0, datef);
 
 % Combine the Target and Chaser States into Y State
 TC0 = [MEE0t; RHO0_LVLH];
@@ -77,7 +79,7 @@ dt_ref = tspan_ref(2) - tspan_ref(1);
 % Perform the Propagation of the Target Trajectory
 pbar = waitbar(0, 'Performing the Target Trajectory Propagation');
 [~, MEEt_ref] = ode113(@(t, MEE) DynamicalModelMEE(t, MEE, EarthPPsMCI, SunPPsMCI, ...
-muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf), tspan_ref, MEE0t, OptionsODE);
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf), tspan_ref, MEE0t, OptionsODE);
 close(pbar);
 
 % Conversion from MEE to COE
@@ -88,7 +90,7 @@ Xt_MCI_ref = COE2rvPCI(COEt_ref, muM);
 
 % Interpolate the Angular Velocity of LVLH wrt MCI
 [~, omegadotPPsLVLH] = TargetHandler(Xt_MCI_ref, COEt_ref, MEEt_ref, tspan_ref, ...
-EarthPPsMCI, SunPPsMCI, MoonPPsECI, deltaE, psiM, deltaM, muE, muS);
+    EarthPPsMCI, SunPPsMCI, MoonPPsECI, deltaE, psiM, deltaM, muE, muS);
 
 
 %% Backwards Propagation from Final Conditions
@@ -106,7 +108,7 @@ TCf_backdrift = [MEEft; RHOf_LVLH];
 % Perform the Backpropagation of Target and Chaser Trajectories
 pbar = waitbar(0, 'Performing the Chaser Trajectory Propagation');
 [tspan_back, TC_backdrift] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
-muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_back, TCf_backdrift, optODE_back);
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_back, TCf_backdrift, optODE_back);
 close(pbar);
 
 % Retrieve the States and epoch for Final Drift
@@ -146,8 +148,8 @@ TCC0 = [TC0; x70];      % initial TargetControlledChaser State
 
 % Perform Rendezvous Propagation
 [tspan_ctrl, TCC] = ode_Ham(@(t, state) HybridPredictiveControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
-     muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, ppXd, DU, TU, check_times, prediction_delta, N_inner, parallel_path),...
-     [t0, t0_backdrift], TCC0, opt.N);
+    muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, ppXd, DU, TU, check_times, prediction_delta, N_inner, parallel_path),...
+    [t0, t0_backdrift], TCC0, opt.N);
 
 % Retrieve Final Mass Ratio Value
 x7f = TCC(end, 13);
@@ -166,7 +168,7 @@ TC0_drift = TCC(end, 1:12);
 % Perform the Final Natural Drift of the Chaser
 pbar = waitbar(0, 'Performing the Chaser Trajectory Propagation');
 [tspan_drift, TC_drift] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
-muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_drift, TC0_drift, optODE_fwd);
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_drift, TC0_drift, optODE_fwd);
 close(pbar);
 
 save('Data/temp/Propagation Completed.mat');
@@ -196,7 +198,7 @@ dist = zeros(length(tspan), 1);
 % Perform Post-Processing
 pbar = waitbar(0, 'Performing the Final Post-Processing');
 for i = 1 : size(RHO_LVLH, 1)
-    
+
     RHO_MCI(i, :) = rhoLVLH2MCI(RHO_LVLH(i, :)', Xt_MCI(i, :)', tspan(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM)';
     Xc_MCI(i, :) = Xt_MCI(i, :) + RHO_MCI(i, :);
 
@@ -220,8 +222,8 @@ clc
 load('Data/temp/Post-Processing.mat');
 
 if opt.create_animation
-figure('name', 'Rendezvous and Docking Animation', 'WindowState', 'maximized')
-DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, RHO_LVLH, bookmark, opt)
+    figure('name', 'Rendezvous and Docking Animation', 'WindowState', 'maximized')
+    DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, RHO_LVLH, bookmark, opt)
 end
 
 
