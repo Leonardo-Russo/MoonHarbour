@@ -14,7 +14,7 @@ addpath('Data/temp/')
 
 % Introduce Options Structure
 opt = struct('name', "Progator Options");
-opt.saveplots = true;
+opt.saveplots = false;
 opt.create_animation = false;
 
 % Define options for ode113()
@@ -165,7 +165,7 @@ bookmark = length(tspan_ctrl);
 optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_fwd(t, Y));
 
 % Define the Forward Drift tspan
-tspan_drift = linspace(tspan_ctrl(end), tf, opt.N);
+tspan_drift = linspace(tspan_ctrl(end), tf + (tf-tspan_ctrl(end))/2, opt.N);
 
 % Define Initial Conditions
 TC0_drift = TCC(end, 1:12);
@@ -176,8 +176,8 @@ pbar = waitbar(0, 'Performing the Chaser Trajectory Propagation');
     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_drift, TC0_drift, optODE_fwd);
 close(pbar);
 
-% Check Successful Back Drift
-if length(tspan_drift) >= opt.N
+% Check Successful Forward Drift
+if length(tspan_drift) >= opt.N         % !!! qui dovrei controllare lo stato o l'uscita dall'evento
     error('Could not complete Forward Natural Drift with the given Initial Conditions.')
 end
 

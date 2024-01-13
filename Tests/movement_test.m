@@ -3,7 +3,7 @@ clear
 clc
 
 
-obj = renderSTL('ISS_2016.stl');
+obj = renderSTL('dragon2.stl');
 
 N = size(obj.Vertices, 1);
 
