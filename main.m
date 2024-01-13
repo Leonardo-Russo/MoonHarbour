@@ -14,7 +14,7 @@ addpath('Data/temp/')
 
 % Introduce Options Structure
 opt = struct('name', "Progator Options");
-opt.saveplots = true;
+opt.saveplots = false;
 opt.create_animation = false;
 
 % Define options for ode113()
@@ -63,7 +63,7 @@ opt.N = 1000;
 [X0t_MCI, COE0t, MEE0t, EarthPPsMCI, DSGPPsMCI, SunPPsMCI, MoonPPsECI, time, t0, tf, opt.N] = ...
     EphemerisHandler(deltaE, psiM, deltaM, opt.N, date0, datef);
 
-% Combine the Target and Chaser States into Y State
+% Combine the Target and Chaser States into TC ~ [Target; Chaser] State
 TC0 = [MEE0t; RHO0_LVLH];
 
 % Open log file
@@ -110,6 +110,11 @@ pbar = waitbar(0, 'Performing the Chaser Trajectory Propagation');
 [tspan_back, TC_backdrift] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_back, TCf_backdrift, optODE_back);
 close(pbar);
+
+% Check Successful Back Drift
+if length(tspan_back) >= opt.N
+    error('Could not complete Backwards Natural Drift with the given Initial Conditions.')
+end
 
 % Retrieve the States and epoch for Final Drift
 TC0_backdrift = TC_backdrift(end, :)';
@@ -160,7 +165,7 @@ bookmark = length(tspan_ctrl);
 optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_fwd(t, Y));
 
 % Define the Forward Drift tspan
-tspan_drift = linspace(tspan_ctrl(end), tf, opt.N/10);
+tspan_drift = linspace(tspan_ctrl(end), tf + (tf-tspan_ctrl(end))/2, opt.N);
 
 % Define Initial Conditions
 TC0_drift = TCC(end, 1:12);
@@ -170,6 +175,11 @@ pbar = waitbar(0, 'Performing the Chaser Trajectory Propagation');
 [tspan_drift, TC_drift] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_drift, TC0_drift, optODE_fwd);
 close(pbar);
+
+% Check Successful Forward Drift
+if length(tspan_drift) >= opt.N         % !!! qui dovrei controllare lo stato o l'uscita dall'evento
+    error('Could not complete Forward Natural Drift with the given Initial Conditions.')
+end
 
 save('Data/temp/Propagation Completed.mat');
 
@@ -195,6 +205,11 @@ RHO_MCI = zeros(length(tspan), 6);
 Xc_MCI = zeros(length(tspan), 6);
 dist = zeros(length(tspan), 1);
 
+terminal_tol = 50e-3/DU;    % tolerance for terminal trajectory flag
+RHOT_LVLH = [];
+terminal_flag = zeros(length(tspan), 1);
+terminal_signchange = 0;
+
 % Perform Post-Processing
 pbar = waitbar(0, 'Performing the Final Post-Processing');
 for i = 1 : size(RHO_LVLH, 1)
@@ -204,6 +219,23 @@ for i = 1 : size(RHO_LVLH, 1)
 
     dist(i) = norm(RHO_MCI(i, 1:3));
 
+    if dist(i) <= terminal_tol
+        RHOT_LVLH = [RHOT_LVLH; RHO_LVLH(i, :)];
+        terminal_flag(i) = 1;
+        if i > 1
+            if terminal_flag(i-1) == 0
+                terminal_signchange = terminal_signchange + 1;
+            end
+        end
+    else
+        terminal_flag(i) = 0;
+        if i > 1
+            if terminal_flag(i-1) == 1
+                terminal_signchange = terminal_signchange + 1;
+            end
+        end
+    end
+
     waitbarMessage = sprintf('Final Post-Processing Progress: %.2f%%\n', i/length(tspan)*100);
     waitbar(i/length(tspan), pbar, waitbarMessage);      % update the waitbar
 
@@ -212,7 +244,7 @@ close(pbar)
 
 save('Data/temp/Post-Processing.mat');
 
-return
+
 %% Visualize the Results
 
 close all
@@ -245,6 +277,15 @@ C_LVLH = DrawTrajLVLH3D(RHO_LVLH(:, 1:3)*DU);
 title('Chaser LVLH Trajectory')
 if opt.saveplots
     saveas(gcf, strcat('Output/Trajectory LVLH.jpg'))
+end
+
+
+% Plot the evolution of the Terminal Chaser State in LVLH
+figure('name', 'Terminal Chaser Trajectory in LVLH Space')
+C_LVLH = DrawTrajLVLH3D(RHOT_LVLH(:, 1:3)*DU);
+title('Terminal Chaser LVLH Trajectory')
+if opt.saveplots
+    saveas(gcf, strcat('Output/Trajectory Terminal LVLH.jpg'))
 end
 
 
