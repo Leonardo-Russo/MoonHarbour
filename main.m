@@ -67,7 +67,7 @@ opt.N = 1000;
 TC0 = [MEE0t; RHO0_LVLH];
 
 % Open log file
-log = fopen('Data/log.txt', 'w+');
+log = fopen('Output/log.txt', 'w+');
 
 % Define the timespan for the propagation
 tspan_ref = linspace(t0, tf, opt.N);

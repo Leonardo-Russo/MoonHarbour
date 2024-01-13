@@ -47,7 +47,8 @@ for i = 1 : N
     thetat = atan2(rver(3) / sin(incl), thetaver(3) / sin(incl));
     omega = wrapToPi(thetat - thetastar);
     
-    checkCOE([a, e, incl, Omega, omega, thetastar]);  % Call to your function to check the computed COE values
+    % % Optional - Check the COE values
+    % checkCOE([a, e, incl, Omega, omega, thetastar]);  % Call to your function to check the computed COE values
 
     COE(i, :) = [a e incl Omega omega thetastar];
 
