@@ -1,4 +1,4 @@
-function dY = NaturalRelativeMotion(t, Y, ...
+function [dY, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, v_r_dot] = NaturalRelativeMotion_PostProcessing(t, Y, ...
                                     EarthPPsMCI, SunPPsMCI, muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH)
 % Description: this is the function with the Dynamical Model for the
 % Relative Motion.
@@ -130,6 +130,15 @@ dY(10:12) = -2*cross(omega_LVLH, rhodot_LVLH) - cross(omegadot_LVLH, rho_LVLH) -
 %         break
 %     end
 % end
+
+% Assign Post-Processing Outputs
+omega_vect = omega_LVLH;
+omega_dot_vect = omegadot_LVLH;
+aP_c = apc_LVLHc;
+aG_c = aG_Mc;
+a34B_c = a34Bc;
+
+v_r_dot = dY(10:12);
 
 end
 

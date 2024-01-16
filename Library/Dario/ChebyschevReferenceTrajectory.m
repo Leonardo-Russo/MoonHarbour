@@ -105,15 +105,18 @@ if fail
     
     M = 1000;   % n° of points for sample tspan
     tspan_check = linspace(t0, tf, M)';
-    RHOref_check = ppsval(RHOrefPPs, tspan_check);
     
     tol = 10e-3/DU;      % 10m of emergency sphere tolerance
     
     for j = 1 : M
-        if norm(RHOref_check(j, 1:3)) >= tol
+
+        RHOref_check = ppsval(RHOrefPPs, tspan_check(j));
+        
+        if norm(RHOref_check(1:3)) >= tol
             fprintf('Damn.\n')
             break
         end
+
     end
 
 end

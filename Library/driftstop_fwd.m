@@ -11,7 +11,9 @@ global DU
 rho_vect = state(7:9);
 rho = norm(rho_vect);
 
-value = rho - 5e-3/DU;       % condition that stops integration when rho=5m (adimensionalised)
+tol = 1e-6;
+
+value = rho - (5e-3 + tol)/DU;       % condition that stops integration when rho=5m (adimensionalised)
 isterminal = 1;
 direction = 0;
 
