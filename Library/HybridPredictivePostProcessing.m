@@ -1,6 +1,6 @@
 function[dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,...
     rho_d_dot_vect, rho_d_ddot_vect, f, f_norm, kp_out, k_type] = HybridPredictivePostProcessing(t, state, ppEarthMCI, ppSunMCI, muM, muE, muS, ...
-    timespan, ppMoonECI, deltaE, psiM, deltaM, ppOmegaVect, t0, ppXd, DU, TU, checkTimes, stopSaturationTime)
+    timespan, ppMoonECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, ppXd, DU, TU, checkTimes, stopSaturationTime)
 
     persistent kp 
 
@@ -119,12 +119,13 @@ function[dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,.
                  ( Omega_dot*cos(i) + theta_dot )*h_hat;
     
     % Computing time derivative of omega_vect at current integration time
-    pp_der = [fnder(ppOmegaVect(1), 1)
-              fnder(ppOmegaVect(2), 1)
-              fnder(ppOmegaVect(3), 1)];
-    omega_dot_vect = [ppval(pp_der(1),t)
-                      ppval(pp_der(2),t)
-                      ppval(pp_der(3),t)];
+    % pp_der = [fnder(ppOmegaVect(1), 1)
+    %           fnder(ppOmegaVect(2), 1)
+    %           fnder(ppOmegaVect(3), 1)];
+    % omega_dot_vect = [ppval(pp_der(1),t)
+    %                   ppval(pp_der(2),t)
+    %                   ppval(pp_der(3),t)];
+    omega_dot_vect = ppsval(omegadotPPsLVLH, t);
     
     
     

@@ -48,11 +48,11 @@ total_time = datef - date0;
 
 % Define the Chaser Initial Conditions ~ norm(rhodot_LVLH) = 1 m/s
 % This was the condition applied for the finetuning of the gain parameters
-RHO0_LVLH = [500e-3, 0, 0, 0, -1e-4, -1e-4]';                      % km, km/s
+RHO0_LVLH = [1.5, 0, 0, 0, -1e-3, -1e-3]';                      % km, km/s
 RHO0_LVLH = [RHO0_LVLH(1:3)/DU; RHO0_LVLH(4:6)/DU*TU];      % adim
 
 % Define Desired Conditions for Docking
-RHOf_LVLH = [-5e-3, 0, 0, 1e-5, 0, 0]';                 % km, km/s
+RHOf_LVLH = [5e-3, 0, 0, -1e-5, 0, 0]';                 % km, km/s
 RHOf_LVLH = [RHOf_LVLH(1:3)/DU; RHOf_LVLH(4:6)/DU*TU];      % adim
 
 % Define the n° of points for the Interpolation
@@ -105,12 +105,12 @@ MEEft = MEEt_ref(end, :)';
 TCf_backdrift = [MEEft; RHOf_LVLH];
 
 % Perform the Backpropagation of Target and Chaser Trajectories
-[tspan_back, TC_backdrift] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
+[tspan_back, TC_backdrift, t_bwdstop, ~, ~] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_back, TCf_backdrift, optODE_back);
 
 % Check Successful Back Drift
-if length(tspan_back) >= opt.N
-    fprintf('Could not complete Backwards Natural Drift with the given Initial Conditions.')
+if isempty(t_bwdstop)
+    warning('Could not complete Backwards Natural Drift with the given Initial Conditions.');
 end
 
 % Retrieve the States and epoch for Final Drift
@@ -121,7 +121,7 @@ t0_backdrift = tspan_back(end);             % !!! there's a 2e-4 difference
 %% Generate the Reference Chaser Trajectory
 
 % Set the Via Points and Interpolate the Reference Trajectory
-[RHOdPPsLVLH, viapoints, t_viapoints] = ChebyschevReferenceTrajectory(TC0, TC0_backdrift, t0, t0_backdrift);
+[RHOdPPsLVLH, viapoints, t_viapoints] = ReferenceTrajectory(TC0, TC0_backdrift, t0, t0_backdrift);
 
 % Compute the Desired State Derivative
 rhodot_rPPs = fnder(RHOdPPsLVLH(1), 1);
@@ -155,9 +155,11 @@ x70 = 1;                % initial mass ratio
 TCC0 = [TC0; x70];      % initial TargetControlledChaser State
 
 % Perform Rendezvous Propagation
+pbar = waitbar(0, 'Performing the Chaser Rendezvous');
 [tspan_ctrl, TCC_ctrl] = ode_Ham(@(t, state) HybridPredictiveControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, RHOdPPsLVLH, DU, TU, check_times, prediction_delta, N_inner, parallel_path),...
+    muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, t0_backdrift, RHOdPPsLVLH, DU, TU, check_times, prediction_delta, N_inner, parallel_path),...
     [t0, t0_backdrift], TCC0, opt.N);
+close(pbar)
 
 % Retrieve Final Mass Ratio Value
 x7f = TCC_ctrl(end, 13);
@@ -174,12 +176,12 @@ tspan_drift = linspace(tspan_ctrl(end), tf + abs(tf-tspan_ctrl(end)), opt.N);
 TC0_drift = TCC_ctrl(end, 1:12);
 
 % Perform the Final Natural Drift of the Chaser
-[tspan_drift, TC_drift] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
+[tspan_drift, TC_drift, t_fwdstop, ~, ~] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_drift, TC0_drift, optODE_fwd);
 
 % Check Successful Forward Drift
-if length(tspan_drift) >= opt.N         % !!! qui dovrei controllare lo stato o l'uscita dall'evento
-    fprintf('Could not complete Forward Natural Drift with the given Initial Conditions.')
+if isempty(t_fwdstop)
+    warning('Could not complete Forward Natural Drift with the given Initial Conditions.');
 end
 
 
@@ -207,7 +209,7 @@ M = length(tspan);
 
 % Initialize Post-Processing Variables
 RHO_MCI = zeros(M, 6);
-RHOd_LVLH = zeros(M, 6);
+RHOd_LVLH = zeros(length(tspan(tspan<t_viapoints(end))), 6);
 Xc_MCI = zeros(M, 6);
 dist = zeros(M, 1);
 vel = zeros(M, 1);
@@ -243,7 +245,9 @@ for i = 1 : size(RHO_LVLH, 1)
     vel(i) = norm(RHO_MCI(i, 4:6));
 
     % Compute the Desired State from Via Points interpolation
-    RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH, tspan(i));
+    if tspan(i) < t_viapoints(end)
+        RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH, tspan(i));
+    end
 
     % Control Quantities
     if i <= bookmark        % hybrid-predictive control law
@@ -267,7 +271,9 @@ for i = 1 : size(RHO_LVLH, 1)
     % Emergency Sphere Crossing Check
     if dist(i) <= terminal_tol
         RHO_LVLH_T = [RHO_LVLH_T; RHO_LVLH(i, :)];
-        RHOd_LVLH_T = [RHOd_LVLH_T; RHOd_LVLH(i, :)];
+        if tspan(i) < t_viapoints(end)
+            RHOd_LVLH_T = [RHOd_LVLH_T; RHOd_LVLH(i, :)];
+        end
         terminal_flag(i) = 1;
         if i > 1
             if terminal_flag(i-1) == 0
@@ -295,7 +301,7 @@ fclose(log);
 
 save('Data/temp/Post-Processed Propagation.mat');
 
-
+% return
 %% Visualize the Results
 
 close all
@@ -340,7 +346,7 @@ end
 % Visualize LVLH State Components
 figure('name', 'Chaser LVLH State Components')
 subplot(2, 3, 1)
-plot((tspan-t0)*TU*sec2hrs, RHOd_LVLH(:, 1)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+plot((tspan(1:opt.N)-t0)*TU*sec2hrs, RHOd_LVLH(:, 1)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
 hold on
 plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 1)*DU, 'color', '#4195e8', 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
@@ -348,7 +354,7 @@ ylabel('$\rho_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
 
 subplot(2, 3, 2)
-plot((tspan-t0)*TU*sec2hrs, RHOd_LVLH(:, 2)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+plot((tspan(1:opt.N)-t0)*TU*sec2hrs, RHOd_LVLH(:, 2)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
 hold on
 plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 2)*DU, 'color', '#4195e8', 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
@@ -356,7 +362,7 @@ ylabel('$\rho_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
 
 subplot(2, 3, 3)
-plot((tspan-t0)*TU*sec2hrs, RHOd_LVLH(:, 3)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+plot((tspan(1:opt.N)-t0)*TU*sec2hrs, RHOd_LVLH(:, 3)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
 hold on
 plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 3)*DU, 'color', '#4195e8', 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
@@ -364,7 +370,7 @@ ylabel('$\rho_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
 
 subplot(2, 3, 4)
-plot((tspan-t0)*TU*sec2hrs, RHOd_LVLH(:, 4)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+plot((tspan(1:opt.N)-t0)*TU*sec2hrs, RHOd_LVLH(:, 4)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
 hold on
 plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 4)*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
@@ -372,7 +378,7 @@ ylabel('$\dot{\rho}_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
 
 subplot(2, 3, 5)
-plot((tspan-t0)*TU*sec2hrs, RHOd_LVLH(:, 5)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+plot((tspan(1:opt.N)-t0)*TU*sec2hrs, RHOd_LVLH(:, 5)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
 hold on
 plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 5)*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
@@ -380,7 +386,7 @@ ylabel('$\dot{\rho}_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
 
 subplot(2, 3, 6)
-plot((tspan-t0)*TU*sec2hrs, RHOd_LVLH(:, 6)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+plot((tspan(1:opt.N)-t0)*TU*sec2hrs, RHOd_LVLH(:, 6)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
 hold on
 plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 6)*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)

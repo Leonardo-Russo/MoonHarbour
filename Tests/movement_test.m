@@ -3,7 +3,7 @@ clear
 clc
 
 
-obj = renderSTL('dragon2.stl');
+obj = renderSTL('Dragon 2/bragon2.stl');
 
 N = size(obj.Vertices, 1);
 

@@ -1,6 +1,6 @@
 function [dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,...
     rho_d_dot_vect, rho_d_ddot_vect, f, f_norm, kp_out, k_type] = HybridPredictiveControl(t, state, ppEarthMCI, ppSunMCI, muM, muE, muS, ...
-    timespan, ppMoonECI, deltaE, psiM, deltaM, ppOmegadotVect, t0, ppXd, DU, TU, checkTimes, Delta_t, N_inner_integration, P)
+    timespan, ppMoonECI, deltaE, psiM, deltaM, ppOmegadotVect, t0, tf, ppXd, DU, TU, checkTimes, Delta_t, N_inner_integration, P)
 
 % Credits: This function was developed building upon a core reference 
 % provided by Dario Sanna.
@@ -323,8 +323,20 @@ function [dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,
     
     dstate(:,1) = [dMEE; x_r_dot; y_r_dot; z_r_dot; v_r_dot; x7_dot];
     
-    fprintf('Maneuver time [h]: %.4g\n', (t-t0)*TU/3600)
+    % fprintf('Maneuver time [h]: %.4g\n', (t-t0)*TU/3600)
     % [(t-t0)*TU/3600, norm(u)*1000*DU/TU^2, rho_c_vect(1)*1000*DU, rho_c_dot_vect(1)*1000*DU/TU]
+    
+    % Clock for the Integration
+    global pbar
+    Day = 86400;  % seconds in a day
+    Hour = 3600;  % seconds in an hour
+    Min = 60;     % seconds in a minute
+    tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
+    tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
+    tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
+    timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
+    waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
+    waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
 
 
 end
