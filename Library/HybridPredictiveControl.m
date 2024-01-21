@@ -327,17 +327,19 @@ function [dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,
     % [(t-t0)*TU/3600, norm(u)*1000*DU/TU^2, rho_c_vect(1)*1000*DU, rho_c_dot_vect(1)*1000*DU/TU]
     
     % Clock for the Integration
-    global pbar
-    Day = 86400;  % seconds in a day
-    Hour = 3600;  % seconds in an hour
-    Min = 60;     % seconds in a minute
-    tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
-    tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
-    tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
-    timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
-    waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
-    waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
+    global pbar opt
 
+    if opt.show_progress
+        Day = 86400;  % seconds in a day
+        Hour = 3600;  % seconds in an hour
+        Min = 60;     % seconds in a minute
+        tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
+        tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
+        tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
+        timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
+        waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
+        waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
+    end
 
 end
 

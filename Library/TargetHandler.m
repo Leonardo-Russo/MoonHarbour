@@ -3,7 +3,7 @@ function [omegaPPsLVLH, omegadotPPsLVLH] = TargetHandler(Xt_MCI, COEt, MEEt, tsp
 
 
 % Recall Global Variables
-global DU TU muM Rm
+global DU TU muM Rm opt
 
 Day = 86400;
 
@@ -11,7 +11,9 @@ Day = 86400;
 omega_LVLH = zeros(length(tspan), 3);
 
 % Compute Local Variables
-pbar = waitbar(0, 'Performing the Target Trajectory Interpolation');
+if opt.show_progress
+    pbar = waitbar(0, 'Performing the Target Trajectory Interpolation');
+end
 
 for i = 1 : length(tspan)
 
@@ -35,9 +37,11 @@ for i = 1 : length(tspan)
     omega_LVLH(i, :) = [Omega_dot*sin(incl)*sin(theta_t) + incl_dot*cos(theta_t); ...
                         Omega_dot*sin(incl)*cos(theta_t) - incl_dot*sin(theta_t); ...
                         Omega_dot*cos(incl) + theta_t_dot]';
-
-    waitbarMessage = sprintf('Target Interpolation Progress: %.2f%%\n', i/length(tspan)*100);
-    waitbar(i/length(tspan), pbar, waitbarMessage);      % update the waitbar
+    
+    if opt.show_progress
+        waitbarMessage = sprintf('Target Interpolation Progress: %.2f%%\n', i/length(tspan)*100);
+        waitbar(i/length(tspan), pbar, waitbarMessage);      % update the waitbar
+    end
 
 end
 
@@ -71,6 +75,8 @@ omegadot_tPPs = fnder(omegaPPsLVLH(2), 1);
 omegadot_hPPs = fnder(omegaPPsLVLH(3), 1);
 omegadotPPsLVLH = [omegadot_rPPs; omegadot_tPPs; omegadot_hPPs];
 
-close(pbar);
+if opt.show_progress
+    close(pbar);
+end
 
 end

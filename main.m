@@ -13,16 +13,19 @@ addpath('Data/temp/')
 
 
 % Introduce Options Structure
+global opt
 opt = struct('name', "Progator Options");
 opt.saveplots = false;
 opt.create_animation = false;
+opt.show_progress = false;
+opt.compute_target = false;
 
 % Define options for ode113()
 opt.RelTolODE = 1e-7;
 opt.AbsTolODE = 1e-6;
 OptionsODE = odeset('RelTol', opt.RelTolODE, 'AbsTol', opt.AbsTolODE);
 
-
+tic
 %% Hyperparameters and Settings
 
 % Define Global Variables
@@ -48,7 +51,7 @@ total_time = datef - date0;
 
 % Define the Chaser Initial Conditions ~ norm(rhodot_LVLH) = 1 m/s
 % This was the condition applied for the finetuning of the gain parameters
-RHO0_LVLH = [1.5, 0, 0, 0, -1e-3, -1e-3]';                      % km, km/s
+RHO0_LVLH = [1.5, 0, 0, -1e-3, 0, -1e-3]';                      % km, km/s
 RHO0_LVLH = [RHO0_LVLH(1:3)/DU; RHO0_LVLH(4:6)/DU*TU];      % adim
 
 % Define Desired Conditions for Docking
@@ -58,39 +61,48 @@ RHOf_LVLH = [RHOf_LVLH(1:3)/DU; RHOf_LVLH(4:6)/DU*TU];      % adim
 % Define the n° of points for the Interpolation
 opt.N = 1000;
 
-% Interpolate the Ephemeris and Retrieve Target's Initial State
-[X0t_MCI, COE0t, MEE0t, EarthPPsMCI, DSGPPsMCI, SunPPsMCI, MoonPPsECI, time, t0, tf, opt.N] = ...
-    EphemerisHandler(deltaE, psiM, deltaM, opt.N, date0, datef);
-
-% Combine the Target and Chaser States into TC ~ [Target; Chaser] State
-TC0 = [MEE0t; RHO0_LVLH];
-
 % Open log file
-log = fopen('Output/log.txt', 'w+');
-
-% Define the timespan for the propagation
-tspan_ref = linspace(t0, tf, opt.N);
-dt_ref = tspan_ref(2) - tspan_ref(1);
-
+    log = fopen('Output/log.txt', 'w+');
 
 %% Propagate Reference Target Trajectory
 
-% Perform the Propagation of the Target Trajectory
-pbar = waitbar(0, 'Performing the Target Trajectory Propagation');
-[~, MEEt_ref] = ode113(@(t, MEE) DynamicalModelMEE(t, MEE, EarthPPsMCI, SunPPsMCI, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf), tspan_ref, MEE0t, OptionsODE);
-close(pbar);
+if opt.compute_target
 
-% Conversion from MEE to COE
-COEt_ref = MEE2COE(MEEt_ref);
+    % Interpolate the Ephemeris and Retrieve Target's Initial State
+    [X0t_MCI, COE0t, MEE0t, EarthPPsMCI, DSGPPsMCI, SunPPsMCI, MoonPPsECI, time, t0, tf, opt.N] = ...
+        EphemerisHandler(deltaE, psiM, deltaM, opt.N, date0, datef);
+    
+    % Combine the Target and Chaser States into TC ~ [Target; Chaser] State
+    TC0 = [MEE0t; RHO0_LVLH];
+    
+    % Define the timespan for the propagation
+    tspan_ref = linspace(t0, tf, opt.N);
+    dt_ref = tspan_ref(2) - tspan_ref(1);
 
-% Conversion from COE to MCI
-Xt_MCI_ref = COE2rvPCI(COEt_ref, muM);
+    % Perform the Propagation of the Target Trajectory
+    if opt.show_progress
+        pbar = waitbar(0, 'Performing the Target Trajectory Propagation');
+    end
+    [~, MEEt_ref] = ode113(@(t, MEE) DynamicalModelMEE(t, MEE, EarthPPsMCI, SunPPsMCI, ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf), tspan_ref, MEE0t, OptionsODE);
+    if opt.show_progress
+        close(pbar);
+    end
+    
+    % Conversion from MEE to COE
+    COEt_ref = MEE2COE(MEEt_ref);
+    
+    % Conversion from COE to MCI
+    Xt_MCI_ref = COE2rvPCI(COEt_ref, muM);
+    
+    % Interpolate the Angular Velocity of LVLH wrt MCI
+    [~, omegadotPPsLVLH] = TargetHandler(Xt_MCI_ref, COEt_ref, MEEt_ref, tspan_ref, ...
+        EarthPPsMCI, SunPPsMCI, MoonPPsECI, deltaE, psiM, deltaM, muE, muS);
 
-% Interpolate the Angular Velocity of LVLH wrt MCI
-[~, omegadotPPsLVLH] = TargetHandler(Xt_MCI_ref, COEt_ref, MEEt_ref, tspan_ref, ...
-    EarthPPsMCI, SunPPsMCI, MoonPPsECI, deltaE, psiM, deltaM, muE, muS);
-
+    save('Data/temp/Target Propagation.mat');
+else
+    load('Data/temp/Target Propagation.mat');
+end
 
 %% Chaser State Backwards Propagation from Final Conditions
 
@@ -155,11 +167,15 @@ x70 = 1;                % initial mass ratio
 TCC0 = [TC0; x70];      % initial TargetControlledChaser State
 
 % Perform Rendezvous Propagation
-pbar = waitbar(0, 'Performing the Chaser Rendezvous');
+if opt.show_progress
+    pbar = waitbar(0, 'Performing the Chaser Rendezvous');
+end
 [tspan_ctrl, TCC_ctrl] = ode_Ham(@(t, state) HybridPredictiveControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
     muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, t0_backdrift, RHOdPPsLVLH, DU, TU, check_times, prediction_delta, N_inner, parallel_path),...
     [t0, t0_backdrift], TCC0, opt.N);
-close(pbar)
+if opt.show_progress
+    close(pbar)
+end
 
 % Retrieve Final Mass Ratio Value
 x7f = TCC_ctrl(end, 13);
@@ -233,7 +249,10 @@ terminal_flag = zeros(M, 1);
 terminal_signchange = 0;
 
 % Perform Post-Processing
-pbar = waitbar(0, 'Performing the Final Post-Processing');
+if opt.show_progress
+    pbar = waitbar(0, 'Performing the Final Post-Processing');
+end
+
 for i = 1 : size(RHO_LVLH, 1)
     
     % Compute MCI States
@@ -290,14 +309,20 @@ for i = 1 : size(RHO_LVLH, 1)
     end
     
     % Update Progress Bar
-    waitbarMessage = sprintf('Post-Processing Progress: %.2f%%\n', i/M*100);
-    waitbar(i/M, pbar, waitbarMessage);      % update the waitbar
+    if opt.show_progress
+        waitbarMessage = sprintf('Post-Processing Progress: %.2f%%\n', i/M*100);
+        waitbar(i/M, pbar, waitbarMessage);      % update the waitbar
+    end
 
 end
-close(pbar)
+
+if opt.show_progress
+    close(pbar)
+end
 
 fclose(log);
 
+runtime = toc;
 
 save('Data/temp/Post-Processed Propagation.mat');
 
@@ -310,23 +335,31 @@ clc
 
 load('Data/temp/Post-Processed Propagation.mat');
 
-
-% Draw the Target, Chaser and Reference Chaser Trajectories in MCI
-figure('name', 'Trajectory in MCI Space')
-T = DrawTrajMCI3D(Xt_MCI(:, 1:3)*DU, '#d1d1d1', '-.');
-C = DrawTrajMCI3D(Xc_MCI(:, 1:3)*DU);
-legend([T, C], {'Target Trajectory', 'Chaser Trajectory'}, 'location', 'best');
-view([140, 30]);
-title('Target and Chaser MCI Trajectories')
-if opt.saveplots
-    saveas(gcf, strcat('Output/Trajectory MCI.jpg'))
+for j = 1 : length(tspan_ctrl)
+    if dist(j) < 10e-3/DU
+        warning('The trajectory crosses 10m!')
+    end
 end
+
+fprintf('Total Runtime: %.1f s.\n', runtime)
+
+% % Draw the Target, Chaser and Reference Chaser Trajectories in MCI
+% figure('name', 'Trajectory in MCI Space')
+% T = DrawTrajMCI3D(Xt_MCI(:, 1:3)*DU, '#d1d1d1', '-.');
+% C = DrawTrajMCI3D(Xc_MCI(:, 1:3)*DU);
+% legend([T, C], {'Target Trajectory', 'Chaser Trajectory'}, 'location', 'best');
+% view([140, 30]);
+% title('Target and Chaser MCI Trajectories')
+% if opt.saveplots
+%     saveas(gcf, strcat('Output/Trajectory MCI.jpg'))
+% end
 
 
 % Visualize Chaser State in LVLH
 figure('name', 'Chaser Trajectory in LVLH Space')
 C_LVLH = DrawTrajLVLH3D(RHO_LVLH(:, 1:3)*DU);
 Cd_LVLH = DrawTrajLVLH3D(RHOd_LVLH(:, 1:3)*DU, '#6efad2', '-.');
+plot3(viapoints(:, 1)*DU, viapoints(:, 2)*DU, viapoints(:, 3)*DU, 'color', 'r', 'linestyle', 'none', 'marker', '.', 'markersize', 15)
 title('Chaser LVLH Trajectory')
 if opt.saveplots
     saveas(gcf, strcat('Output/Trajectory LVLH.jpg'))
@@ -452,5 +485,4 @@ if opt.create_animation
     figure('name', 'Rendezvous and Docking Animation', 'WindowState', 'maximized')
     DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, RHO_LVLH, bookmark, opt)
 end
-
 

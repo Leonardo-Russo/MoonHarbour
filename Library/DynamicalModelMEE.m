@@ -31,24 +31,24 @@ x5 = MEE(5);
 x6 = MEE(6);
 
 % Retrieve Global Variables
-global muM Rm DU TU pbar
+global muM Rm DU TU pbar opt
 
-
-% Clock for the Integration
-Day = 86400;  % seconds in a day
-Hour = 3600;  % seconds in an hour
-Min = 60;     % seconds in a minute
-
-tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
-tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
-tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
-
-timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
-
-waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
-
-waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
-
+if opt.show_progress
+    % Clock for the Integration
+    Day = 86400;  % seconds in a day
+    Hour = 3600;  % seconds in an hour
+    Min = 60;     % seconds in a minute
+    
+    tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
+    tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
+    tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
+    
+    timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
+    
+    waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
+    
+    waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
+end
 
 % Compute Local Variables
 eta = get_eta(MEE);
