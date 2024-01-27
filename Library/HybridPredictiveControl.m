@@ -193,6 +193,9 @@ function [dstate, omega_vect, omega_dot_vect, aP_c, aG_c, a34B_c, u, rho_d_vect,
     g0 = 9.80665;
     u_limit =  5e-5*g0/(1000*DU)*TU^2;
     threshold = 0.9*u_limit;
+
+    % ADJUSTMENT
+    index = min(index, length(checkTimes));
     
     % Predictive propagation
     if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0

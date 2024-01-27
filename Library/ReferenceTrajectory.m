@@ -24,28 +24,32 @@ global DU
 
 % Initial conditions
 rho_r0 = TC0(7);
-rho_theta0 = TC0(8);
+rho_t0 = TC0(8);
 rho_h0 = TC0(9);
-rho_dot_r0 = TC0(10);
-rho_dot_theta0 = TC0(11);
-rho_dot_h0 = TC0(12);
+rhodot_r0 = TC0(10);
+rhodot_t0 = TC0(11);
+rhodot_h0 = TC0(12);
+rho_0 = TC0(7:9);
+rhodot_0 = TC0(10:12);
 
 % Final conditions
 rho_rf = TCf(7); 
-rho_thetaf = TCf(8);
+rho_tf = TCf(8);
 rho_hf = TCf(9);
-rho_dot_rf = TCf(10);
-rho_dot_thetaf = TCf(11);
-rho_dot_hf = TCf(12);
+rhodot_rf = TCf(10);
+rhodot_tf = TCf(11);
+rhodot_hf = TCf(12);
+rho_f = TCf(7:9);
+rhodot_f = TCf(10:12);
 
 % Generation of via points
 theta0 = pi;
-finalAngle_r = finalAngle(rho_r0,rho_rf, rho_dot_rf, tf, t0,theta0);
-finalAngle_theta = finalAngle(rho_theta0,rho_thetaf, rho_dot_thetaf,tf,t0,theta0);
-finalAngle_h = finalAngle(rho_h0,rho_hf, rho_dot_hf, tf, t0,theta0);
+finalAngle_r = finalAngle(rho_r0, rho_rf, rhodot_rf, tf, t0, theta0);
+finalAngle_t = finalAngle(rho_t0, rho_tf, rhodot_tf, tf, t0, theta0);
+finalAngle_h = finalAngle(rho_h0, rho_hf, rhodot_hf, tf, t0, theta0);
 
 % Check Free Trajectory
-N = 10;          % n° of viapoints
+N = 2;          % n° of viapoints
 
 tspan_viapoints = zeros(N,1);
 for i = 1 : N
@@ -53,40 +57,82 @@ for i = 1 : N
 end
 
 rho_r = Chebspace(rho_r0, rho_rf, pi, finalAngle_r, N)';
-rho_theta = Chebspace(rho_theta0, rho_thetaf, pi, finalAngle_theta, N)';
+rho_t = Chebspace(rho_t0, rho_tf, pi, finalAngle_t, N)';
 rho_h = Chebspace(rho_h0, rho_hf, pi, finalAngle_h, N)';
 
 % Compute Reference trajectory (spline)
-pp_rho_r = csape(tspan_viapoints,[rho_dot_r0 rho_r' rho_dot_rf], [0,1]); 
-pp_rho_theta = csape(tspan_viapoints,[rho_dot_theta0 rho_theta' rho_dot_thetaf], [0,1]); 
-pp_rho_h = csape(tspan_viapoints,[rho_dot_h0 rho_h' rho_dot_hf], [0,1]); 
+rho_rPPs = csape(tspan_viapoints,[rhodot_r0 rho_r' rhodot_rf], [0,1]); 
+rho_tPPs = csape(tspan_viapoints,[rhodot_t0 rho_t' rhodot_tf], [0,1]); 
+rho_hPPs = csape(tspan_viapoints,[rhodot_h0 rho_h' rhodot_hf], [0,1]); 
 
-RHOrefPPs = [pp_rho_r; pp_rho_theta; pp_rho_h];
-viapoints = [rho_r, rho_theta, rho_h];
+RHOrefPPs = [rho_rPPs; rho_tPPs; rho_hPPs];
+viapoints = [rho_r, rho_t, rho_h];
 
 
 M = 1000;   % n° of points for sample tspan
 tspan_check = linspace(t0, tf, M)';
+dist = zeros(M, 1);
 
-tol = 10e-3/DU;      % 10m of emergency sphere tolerance
-fail = 0;
+emergency_radius = 10e-3/DU;          % 10m of emergency sphere radius
 
+% Check for Emergency Sphere Intersection
+collision = 0;    
 for j = 1 : M
-    RHOref_check = ppsval(RHOrefPPs, tspan_check(j));
-    if norm(RHOref_check(1:3)) <= tol
-        warning('Switching to 3 Via Points Method.')
-        fail = 1;
-        break
+    dist(j) = norm(ppsval(RHOrefPPs, tspan_check(j)));
+    if dist(j) <= emergency_radius
+        collision = 1;
     end
 end
 
-if fail
 
-    % Set Additional Via Point
-    N = 3;          % n° of viapoints
+% Three Via Points Method
+if collision
+
+    fprintf('\nSwitching to 3 Via Points Method.\n')
+
+    % Compute MidTime
+    [~, min_idx] = min(dist);
+    t1 = tspan_check(min_idx);
+    
+    % Compute Auxiliary Reference Frame
+    l_hat = cross(rho_0, rho_f) / norm(cross(rho_0, rho_f));
+    lambda0_hat = cross(l_hat, rho_0)/norm(rho_0);
+    rho_0_hat = rho_0 / norm(rho_0);
+
+    % Compute rho_1
+    xi = acos(emergency_radius/norm(rho_0));
+    rho_1 = emergency_radius * (cos(xi)*rho_0_hat + sin(xi)*lambda0_hat);
+
+    % Create Additional Via Point
+    rho_r1 = rho_1(1);
+    rho_t1 = rho_1(2);
+    rho_h1 = rho_1(3);
+    tspan_viapoints = [t0, t1, tf]';
+    
+    rho_r = [rho_r0, rho_r1, rho_rf]';
+    rho_t = [rho_t0, rho_t1, rho_tf]';
+    rho_h = [rho_h0, rho_h1, rho_hf]';
+    
+    % Compute Reference Trajectory
+    RHOrefPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
+
+    % rho_rPPs = csape(tspan_viapoints, [rhodot_r0 rho_r' rhodot_rf], [0,1]); 
+    % rho_tPPs = csape(tspan_viapoints, [rhodot_t0 rho_t' rhodot_tf], [0,1]); 
+    % rho_hPPs = csape(tspan_viapoints, [rhodot_h0 rho_h' rhodot_hf], [0,1]); 
+    % 
+    % RHOrefPPs = [rho_rPPs; rho_tPPs; rho_hPPs];
+    viapoints = [rho_r, rho_t, rho_h];
 
 end
 
+% % Show the Reference Trajectory
 % testPPs(RHOrefPPs, tspan_check);
+
+% Compute the Reference Trajectory Velocity
+rhodot_rPPs = fnder(RHOrefPPs(1), 1);
+rhodot_tPPs = fnder(RHOrefPPs(2), 1);
+rhodot_hPPs = fnder(RHOrefPPs(3), 1);
+RHOrefPPs = [RHOrefPPs; rhodot_rPPs; rhodot_tPPs; rhodot_hPPs];
+
 
 end

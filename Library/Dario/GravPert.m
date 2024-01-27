@@ -4,6 +4,10 @@ function[aG] = GravPert(state, ppMoonECI, t, timespan, muM, deltaE, psiM, ...
 %CARTESIAN STATE IN MCI
 CartState = Class2Cart(Equin2Class(state(1:6)), muM);
 
+if t < timespan(1) || t > timespan(end)
+    warning('Out of time boundaries.')
+end
+
 %MOON STATE IN ECI
 rE2M_ECI = [PolyEval(t, timespan, flip(ppMoonECI(1).coefs, 2)); ...
     PolyEval(t, timespan, flip(ppMoonECI(2).coefs, 2)); ...
