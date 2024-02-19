@@ -1,4 +1,4 @@
-function [value, stopIntegration] = terminalstop(t, state)
+function [value, stop] = is_terminal_distance(t, state)
 % Assuming y contains position information in the first three elements
 % Adjust the indices according to your state vector structure
 
@@ -11,6 +11,6 @@ rho = norm(rho_vect);
 value = rho - 50e-3/DU; % Becomes negative when distance is less than 50 m
 
 % Stop integration when distance is less than 50 meters
-stopIntegration = value <= 0;
+stop = value <= 0;
 
 end

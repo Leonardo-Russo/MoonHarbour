@@ -3,6 +3,8 @@
 close all
 clear
 clc
+
+debug = 1;
                                                                                 
 addpath('Library/')
 addpath('Library/Dario/')
@@ -15,10 +17,10 @@ addpath('Data/temp/')
 % Introduce Options Structure
 global opt
 opt = struct('name', "Progator Options");
-opt.saveplots = true;
+opt.saveplots = false;
 opt.create_animation = false;
-opt.show_progress = true;
-opt.compute_target = true;
+opt.show_progress = false;
+opt.compute_target = false;
 
 % Define options for ode113()
 opt.RelTolODE = 1e-7;
@@ -57,9 +59,13 @@ date0 = datetime('2025-05-23 9:56:10');
 datef = datetime('2025-05-23 21:56:10');    % @ periselenium
 total_time = datef - date0;
 
+% Define Control Limit
+g0 = 9.80665;
+u_limit = 5e-5*g0;
+
 % Define the Chaser Initial Conditions ~ norm(rhodot_LVLH) = 1 m/s
 % This was the condition applied for the finetuning of the gain parameters
-RHO0_LVLH = [1.5, 0, 0, 0, -1e-3, -1e-3]';                  % km, km/s
+RHO0_LVLH = [1.5, 0, 0, -1e-6, -1e-3, -1e-3]';                  % km, km/s
 RHO0_LVLH = [RHO0_LVLH(1:3)/DU; RHO0_LVLH(4:6)/DU*TU];      % adim
 
 % Define Desired Conditions for Docking
@@ -151,7 +157,7 @@ t0_backdrift_DA = tspan_back_DA(end);
 %% Direct Approach: Generate the Reference Chaser Trajectory
 
 % Set the Via Points and Interpolate the Reference Trajectory
-[RHOdPPsLVLH_DA, viapoints_DA, t_viapoints_DA] = ReferenceTrajectory(TC0, TC0_backdrift_DA, t0, t0_backdrift_DA);
+[RHOdPPsLVLH_DA, viapoints_DA, t_viapoints_DA] = ReferenceTrajectory(TC0, TC0_backdrift_DA, t0, t0_backdrift_DA, [0, 1]);
 
 % Control Settings
 prediction_interval_DA = 120;                  % s - one prediction every 2 minutes
@@ -168,19 +174,84 @@ prediction_delta_DA = (30*60)/TU;      % predictive propagation of 30 min forwar
 N_inner_DA = round(prediction_delta_DA/dt_ref) - 1;       % n° of points in the inner propagation
 
 
-%% Direct Approach: Perform Chaser Rendezvous Manoeuvre and Natural Drift
+%% Direct Approach: Perform Chaser Rendezvous Manoeuvre
 
 % Define Initial Conditions
 x70 = 1;                % initial mass ratio
 TCC0 = [TC0; x70];      % initial TargetControlledChaser State
+event_odefun = 1;       % 1 means it'll stop at saturation
 
 % Perform Rendezvous Propagation
 if opt.show_progress
     pbar = waitbar(0, 'Performing the Direct Approach Rendezvous');
 end
-[tspan_ctrl_DA, TCC_ctrl_DA] = ode_Ham_with_events(@(t, state) HybridPredictiveControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, t0_backdrift_DA, RHOdPPsLVLH_DA, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, stop_sat1),...
-    [t0, t0_backdrift_DA], TCC0, opt.N, @terminalstop);
+[tspan_ctrl_DA, TCC_ctrl_DA] = odeHamHPC(@(t, TCC) HybridPredictiveControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, t0_backdrift_DA, RHOdPPsLVLH_DA, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, stop_sat1),...
+    [t0, t0_backdrift_DA], TCC0, opt.N, @is_terminal_distance, event_odefun);
+
+[~, terminal_flag] = is_terminal_distance(tspan_ctrl_DA(end), TCC_ctrl_DA(end, :));
+
+% Define Regenerative Trajectory Guidance Options
+regenerative_dt = 30*60;    % s
+RHOdPPsLVLH_RTs = [];
+kp_fixed = 2.1646;
+
+% Perform Regenerative Trajectory Guidance
+optODE_RT = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
+while ~terminal_flag
+    close all
+    TCC_RT0 = TCC_ctrl_DA(end, :);
+    t0_RT = tspan_ctrl_DA(end);
+    
+    tf_RT = min(t0_RT+regenerative_dt/TU, t0_backdrift_DA);
+
+    % Create New Reference Trajectory
+    [RHOdPPsLVLH_RT, viapoints_RT, t_viapoints_RT] = ReferenceTrajectory(TCC_RT0, TC0_backdrift_DA, t0_RT, t0_backdrift_DA, [0, 1]);
+
+    % Perform New Propagation
+    [tspan_RT, TCC_RT] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_RT, RHOdPPsLVLH_RT, kp_fixed, DU, TU), ...
+    [t0_RT, tf_RT], TCC_RT0, opt.N);
+
+    % [tspan_RT, TCC_RT] = ode113(@(t, TCC) AdaptableFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
+    % muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_RT, RHOdPPsLVLH_RT, DU, TU), ...
+    % linspace(t0_RT, tf_RT, opt.N), TCC_RT0', optODE_RT);
+
+    TCC_ctrl_DA = [TCC_ctrl_DA; TCC_RT];
+    tspan_ctrl_DA = [tspan_ctrl_DA; tspan_RT];
+    RHOdPPsLVLH_RTs = [RHOdPPsLVLH_RTs, RHOdPPsLVLH_RT];
+
+    DrawTrajLVLH3D(TCC_ctrl_DA(:, 7:9)*DU);
+    
+    if debug
+        % Debug - Post Processing
+        u_RT = zeros(length(tspan_RT), 3);
+        unorms_RT = zeros(length(tspan_RT), 1);
+        kp_RT = zeros(length(tspan_RT), 1);
+        for j = 1 : length(tspan_RT)
+        %     [~, ~, ~, ~, u_RT(j, :), ~, ~, ~, ~, kp_RT(j)] = AdaptableFeedbackControl(tspan_RT(j), TCC_RT(j, :), EarthPPsMCI, SunPPsMCI, muM, ...
+        %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_RT, RHOdPPsLVLH_RT, DU, TU);
+            [~, ~, ~, ~, u_RT(j, :), ~, ~, ~, ~] = NaturalFeedbackControl(tspan_RT(j), TCC_RT(j, :), EarthPPsMCI, SunPPsMCI, muM, ...
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_RT, RHOdPPsLVLH_RT, kp_fixed, DU, TU);
+            unorms_RT(j) = norm(u_RT(j, :));
+        end
+        % Debug - Visualization
+        figure('name', 'Control Thrust')
+        p1 = plot((tspan_RT-t0)*TU*sec2hrs, unorms_RT*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
+        hold on
+        p2 = plot((tspan_RT-t0)*TU*sec2hrs, u_limit*ones(length(tspan_RT), 1), 'r--', 'LineWidth', 1.2);
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+        title('Control Norm')
+        legend([p1, p2], '$|u|$', '$u_{max}$','Location', 'best', 'Fontsize', 12, 'Interpreter', 'latex');
+        hold off
+        
+    end
+
+    [~, terminal_flag] = is_terminal_distance(tspan_ctrl_DA(end), TCC_ctrl_DA(end, :));
+
+end
+
 if opt.show_progress
     close(pbar)
 end
@@ -226,10 +297,15 @@ TC0_backdrift = TC_backdrift(end, :)';
 t0_backdrift = tspan_back(end);
 
 
+% Show Backdrift Trajectory
+figure('name', 'Backdrift Trajectory')
+DrawTrajLVLH3D(TC_backdrift(:, 7:9)*DU);
+
+
 %% Terminal Trajectory: Generate the Reference Chaser Trajectory
 
 % Set the Via Points and Interpolate the Reference Trajectory
-[RHOdPPsLVLH_T, viapoints_T, t_viapoints_T] = ReferenceTrajectory(TCC_T0(1:12), TC0_backdrift, t0_T, t0_backdrift);
+[RHOdPPsLVLH_T, viapoints_T, t_viapoints_T] = ReferenceTrajectory(TCC_T0(1:12), TC0_backdrift, t0_T, t0_backdrift, [0, 1]);
 
 % Control Settings
 prediction_interval_T = 120;                  % s - one prediction every 2 minutes
@@ -241,7 +317,7 @@ check_times_T = zeros(prediction_maxlength_T, 1);           % gets all the times
 for k = 1 : prediction_maxlength_T
     check_times_T(k) = t0_T + (k-1) * prediction_dt_T;        % compute the check_times vector
 end
-% IT GOES TO PREDICT 30min FORWARD BUT POLYEVAL DOESN'T ALLOW IT
+
 prediction_delta_T = (30*60)/TU;      % predictive propagation of 30 min forward
 N_inner_T = round(prediction_delta_T/dt_ref) - 1;       % n° of points in the inner propagation
 
@@ -254,13 +330,10 @@ N_inner_T = round(prediction_delta_T/dt_ref) - 1;       % n° of points in the i
 if opt.show_progress
     pbar = waitbar(0, 'Performing the Chaser Rendezvous');
 end
-% [tspan_ctrl, TCC_ctrl] = ode_Ham(@(t, state) HybridPredictiveControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
-%     muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_T, t0_backdrift, RHOdPPsLVLH_T, DU, TU, check_times_T, prediction_delta_T, N_inner_T, stop_sat2),...
-%     [t0_T, t0_backdrift], TCC_T0, opt.N);
-kp = 2.16460482641155;
+
 kp = 10;
-[tspan_ctrl, TCC_ctrl] = ode_Ham(@(t, state) NaturalControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_T, RHOdPPsLVLH_T, kp, DU, TU), ...
+[tspan_ctrl, TCC_ctrl] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_T, RHOdPPsLVLH_T, kp, DU, TU), ...
     [t0_T, t0_backdrift], TCC_T0, opt.N);
 if opt.show_progress
     close(pbar)
@@ -320,7 +393,7 @@ M_drift = length(tspan_drift);
 
 % Initialize Post-Processing Variables
 RHO_MCI = zeros(M, 6);
-RHOd_LVLH = zeros(M_ctrl_DA + M_ctrl, 6);
+RHOd_LVLH = zeros(M_ctrl_DA + M_ctrl, 9);
 Xc_MCI = zeros(M, 6);
 dist = zeros(M, 1);
 vel = zeros(M, 1);
@@ -337,10 +410,6 @@ stopSaturationTime1 = stopSaturationTime;
 % load(stop_sat2);
 % stopSaturationTime2 = stopSaturationTime;
 stopSaturationTime2 = 0;
-
-% Define Control Limit
-g0 = 9.80665;
-u_limit = 5e-5*g0*ones(M, 1);
 
 % Initialize Terminal Trajectory Variables - TO BE REMOVED
 terminal_tol = 50e-3/DU;    % tolerance for terminal trajectory flag
@@ -574,7 +643,7 @@ end
 figure('name', 'Control Thrust')
 p1 = plot((tspan-t0)*TU*sec2hrs, u_norms*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
 hold on
-p2 = plot((tspan-t0)*TU*sec2hrs, u_limit, 'r--', 'LineWidth', 1.2);
+p2 = plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
 p3 = plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
@@ -587,7 +656,7 @@ axes('position', zoomPos);
 box on  % adds a box around the new axes
 plot((tspan-t0)*TU*sec2hrs, u_norms*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
 hold on
-plot((tspan-t0)*TU*sec2hrs, u_limit, 'r--', 'LineWidth', 1.2);
+plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
 plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
 grid on
 
@@ -608,7 +677,7 @@ u1 = plot((tspan-t0)*TU*sec2hrs, u(1,:)*1000*DU/TU^2, 'LineWidth', 1.5);
 hold on
 u2 = plot((tspan-t0)*TU*sec2hrs, u(2,:)*1000*DU/TU^2, 'LineWidth', 1.5);
 u3 = plot((tspan-t0)*TU*sec2hrs, u(3,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-ulim = plot((tspan-t0)*TU*sec2hrs, u_limit, 'r--', 'LineWidth', 1.2);
+ulim = plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
 title('Control Components')
@@ -623,7 +692,7 @@ plot((tspan-t0)*TU*sec2hrs, u(1,:)*1000*DU/TU^2, 'LineWidth', 1.5);
 hold on
 plot((tspan-t0)*TU*sec2hrs, u(2,:)*1000*DU/TU^2, 'LineWidth', 1.5);
 plot((tspan-t0)*TU*sec2hrs, u(3,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-plot((tspan-t0)*TU*sec2hrs, u_limit, 'r--', 'LineWidth', 1.2);
+plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
 grid on
 
 xlim([(t0_T-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]); % set the x and y limits to focus on the final part of the plot

@@ -1,4 +1,4 @@
-function [RHOrefPPs, viapoints, tspan_viapoints] = ReferenceTrajectory(TC0, TCf, t0, tf)
+function [RHOrefPPs, viapoints, tspan_viapoints] = ReferenceTrajectory(TC0, TCf, t0, tf, BC)
 % Description: this function computes reference trajectory that should be followed by
 % the chaser during the approach to the target (rendezvous). This is
 % carried out in target LVLH frame, so we work with relative distances
@@ -8,17 +8,17 @@ function [RHOrefPPs, viapoints, tspan_viapoints] = ReferenceTrajectory(TC0, TCf,
 % components to 0 in 12h. This distribution has the peculiar feature that
 % can produce a denser set of points at the beginning (where dynamic is
 % faster) and a less dense set of point at the end (where dynamic is
-% slower).
-% In this way N via points are generated, which are then 
+% slower). In this way N via points are generated, which are then 
 % connected with a spline.
+% The reference trajectory is then evaluated at a test timespan and if it
+% crosses the emergency radius, then a new procedure will begin to avoid
+% it by setting a via point tangent to the sphere.
 %
 % t0 and tf must be nondimensional.
 % TU must be expressed in seconds.
-% 
-% Credits: This function was developed building upon a core reference 
-% provided by Dario Sanna.
-% 
-% Note: I have added the trajectory verification step.
+
+debug = 1;
+
 
 global DU
 
@@ -48,7 +48,7 @@ finalAngle_r = finalAngle(rho_r0, rho_rf, rhodot_rf, tf, t0, theta0);
 finalAngle_t = finalAngle(rho_t0, rho_tf, rhodot_tf, tf, t0, theta0);
 finalAngle_h = finalAngle(rho_h0, rho_hf, rhodot_hf, tf, t0, theta0);
 
-% Check Free Trajectory
+% Free Unconstrained Trajectory
 N = 2;          % n° of viapoints
 
 tspan_viapoints = zeros(N,1);
@@ -61,9 +61,9 @@ rho_t = Chebspace(rho_t0, rho_tf, pi, finalAngle_t, N)';
 rho_h = Chebspace(rho_h0, rho_hf, pi, finalAngle_h, N)';
 
 % Compute Reference trajectory (spline)
-rho_rPPs = csape(tspan_viapoints,[rhodot_r0 rho_r' rhodot_rf], [0,1]); 
-rho_tPPs = csape(tspan_viapoints,[rhodot_t0 rho_t' rhodot_tf], [0,1]); 
-rho_hPPs = csape(tspan_viapoints,[rhodot_h0 rho_h' rhodot_hf], [0,1]); 
+rho_rPPs = csape(tspan_viapoints,[rhodot_r0 rho_r' rhodot_rf], BC); 
+rho_tPPs = csape(tspan_viapoints,[rhodot_t0 rho_t' rhodot_tf], BC); 
+rho_hPPs = csape(tspan_viapoints,[rhodot_h0 rho_h' rhodot_hf], BC); 
 
 RHOrefPPs = [rho_rPPs; rho_tPPs; rho_hPPs];
 viapoints = [rho_r, rho_t, rho_h];
@@ -115,24 +115,24 @@ if collision
     
     % Compute Reference Trajectory
     RHOrefPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
-
-    % rho_rPPs = csape(tspan_viapoints, [rhodot_r0 rho_r' rhodot_rf], [0,1]); 
-    % rho_tPPs = csape(tspan_viapoints, [rhodot_t0 rho_t' rhodot_tf], [0,1]); 
-    % rho_hPPs = csape(tspan_viapoints, [rhodot_h0 rho_h' rhodot_hf], [0,1]); 
-    % 
-    % RHOrefPPs = [rho_rPPs; rho_tPPs; rho_hPPs];
     viapoints = [rho_r, rho_t, rho_h];
 
 end
 
-% % Show the Reference Trajectory
-% testPPs(RHOrefPPs, tspan_check);
+% Show the Reference Trajectory
+if debug
+    testPPs(RHOrefPPs, tspan_check);
+end
 
-% Compute the Reference Trajectory Velocity
+% Compute the Reference Trajectory Velocity and Acceleration
 rhodot_rPPs = fnder(RHOrefPPs(1), 1);
 rhodot_tPPs = fnder(RHOrefPPs(2), 1);
 rhodot_hPPs = fnder(RHOrefPPs(3), 1);
-RHOrefPPs = [RHOrefPPs; rhodot_rPPs; rhodot_tPPs; rhodot_hPPs];
+
+rhoddot_rPPs = fnder(rhodot_rPPs, 1);
+rhoddot_tPPs = fnder(rhodot_tPPs, 1);
+rhoddot_hPPs = fnder(rhodot_hPPs, 1);
+RHOrefPPs = [RHOrefPPs; rhodot_rPPs; rhodot_tPPs; rhodot_hPPs; rhoddot_rPPs; rhoddot_tPPs; rhoddot_hPPs];
 
 
 end
