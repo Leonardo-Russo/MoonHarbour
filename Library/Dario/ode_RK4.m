@@ -9,9 +9,9 @@ if nargin < 3, y0 = 0; end
 y(1,:) = y0(:)'; % make it a row vector
 h = (tspan(2)-tspan(1))/N; t = tspan(1)+[0:N]'*h;
 for k = 1:N
-    f1 = h*feval(f,t(k),y(k,:),varargin{:}); f1=f1(:)'; 
-    f2 = h*feval(f,t(k)+h/2,y(k,:)+f1/2,varargin{:}); f2=f2(:)'; 
-    f3 = h*feval(f,t(k)+h/2,y(k,:)+f2/2,varargin{:}); f3=f3(:)'; 
+    f1 = h*feval(f,t(k),y(k,:),varargin{:}); f1=f1(:)';
+    f2 = h*feval(f,t(k)+h/2,y(k,:)+f1/2,varargin{:}); f2=f2(:)';
+    f3 = h*feval(f,t(k)+h/2,y(k,:)+f2/2,varargin{:}); f3=f3(:)';
     f4 = h*feval(f,t(k)+h,y(k,:)+f3,varargin{:}); f4=f4(:)';
     y(k+1,:)=y(k,:)+(f1+2*(f2+f3)+f4)/6;
     %disp('a');

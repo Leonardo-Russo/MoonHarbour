@@ -2,7 +2,9 @@ function COE = MEE2COE(MEE)
 % Description: this function converts from Modified Equinoctial Elements to
 % Classical Orbital Elements.
 
-if size(MEE, 2) ~= 6
+if size(MEE, 1) == 6 && size(MEE, 2) == 1   % flipped state vector exception
+    MEE = MEE';
+elseif size(MEE, 2) ~= 6
     error('Wrong Dimension of MEE! MEE is expected to be a Nx6 Matrix.')
 end
 
