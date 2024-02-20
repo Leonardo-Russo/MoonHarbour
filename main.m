@@ -4,7 +4,6 @@ close all
 clear
 clc
 
-debug = 1;
                                                                                 
 addpath('Library/')
 addpath('Library/Dario/')
@@ -82,7 +81,6 @@ opt.N = 1000;
 
 %% Propagate Reference Target Trajectory
 
-% I need to make so that only the meaningful variables are saved!
 if opt.compute_target
 
     % Interpolate the Ephemeris and Retrieve Target's Initial State
@@ -142,7 +140,7 @@ TCf_backdrift_DA = [MEEft; RHOf_LVLH_DA];
 
 % Perform the Backpropagation of Target and Chaser Trajectories
 [tspan_back_DA, TC_backdrift_DA, t_bwdstop_DA, ~, ~] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_back_DA, TCf_backdrift_DA, optODE_back);
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH, 0), tspan_back_DA, TCf_backdrift_DA, optODE_back);
 
 % Check Successful Back Drift
 if isempty(t_bwdstop_DA)
@@ -181,94 +179,48 @@ x70 = 1;                % initial mass ratio
 TCC0 = [TC0; x70];      % initial TargetControlledChaser State
 event_odefun = 1;       % 1 means it'll stop at saturation
 
-% Perform Rendezvous Propagation
+% Perform Hybrid-Predictive Feedback Control
 if opt.show_progress
     pbar = waitbar(0, 'Performing the Direct Approach Rendezvous');
 end
 [tspan_ctrl_DA, TCC_ctrl_DA] = odeHamHPC(@(t, TCC) HybridPredictiveControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, t0_backdrift_DA, RHOdPPsLVLH_DA, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, stop_sat1),...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, stop_sat1),...
     [t0, t0_backdrift_DA], TCC0, opt.N, @is_terminal_distance, event_odefun);
 
+% Check if Terminal Conditions are reached
 [~, terminal_flag] = is_terminal_distance(tspan_ctrl_DA(end), TCC_ctrl_DA(end, :));
-
-% Define Regenerative Trajectory Guidance Options
-regenerative_dt = 30*60;    % s
-RHOdPPsLVLH_RTs = [];
-kp_fixed = 2.1646;
-
-% Perform Regenerative Trajectory Guidance
-optODE_RT = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
-while ~terminal_flag
-    close all
-    TCC_RT0 = TCC_ctrl_DA(end, :);
-    t0_RT = tspan_ctrl_DA(end);
-    
-    tf_RT = min(t0_RT+regenerative_dt/TU, t0_backdrift_DA);
-
-    % Create New Reference Trajectory
-    [RHOdPPsLVLH_RT, viapoints_RT, t_viapoints_RT] = ReferenceTrajectory(TCC_RT0, TC0_backdrift_DA, t0_RT, t0_backdrift_DA, [0, 1]);
-
-    % Perform New Propagation
-    [tspan_RT, TCC_RT] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_RT, RHOdPPsLVLH_RT, kp_fixed, DU, TU), ...
-    [t0_RT, tf_RT], TCC_RT0, opt.N);
-
-    % [tspan_RT, TCC_RT] = ode113(@(t, TCC) AdaptableFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    % muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_RT, RHOdPPsLVLH_RT, DU, TU), ...
-    % linspace(t0_RT, tf_RT, opt.N), TCC_RT0', optODE_RT);
-
-    TCC_ctrl_DA = [TCC_ctrl_DA; TCC_RT];
-    tspan_ctrl_DA = [tspan_ctrl_DA; tspan_RT];
-    RHOdPPsLVLH_RTs = [RHOdPPsLVLH_RTs, RHOdPPsLVLH_RT];
-
-    DrawTrajLVLH3D(TCC_ctrl_DA(:, 7:9)*DU);
-    
-    if debug
-        % Debug - Post Processing
-        u_RT = zeros(length(tspan_RT), 3);
-        unorms_RT = zeros(length(tspan_RT), 1);
-        kp_RT = zeros(length(tspan_RT), 1);
-        for j = 1 : length(tspan_RT)
-        %     [~, ~, ~, ~, u_RT(j, :), ~, ~, ~, ~, kp_RT(j)] = AdaptableFeedbackControl(tspan_RT(j), TCC_RT(j, :), EarthPPsMCI, SunPPsMCI, muM, ...
-        %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_RT, RHOdPPsLVLH_RT, DU, TU);
-            [~, ~, ~, ~, u_RT(j, :), ~, ~, ~, ~] = NaturalFeedbackControl(tspan_RT(j), TCC_RT(j, :), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_RT, RHOdPPsLVLH_RT, kp_fixed, DU, TU);
-            unorms_RT(j) = norm(u_RT(j, :));
-        end
-        % Debug - Visualization
-        figure('name', 'Control Thrust')
-        p1 = plot((tspan_RT-t0)*TU*sec2hrs, unorms_RT*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
-        hold on
-        p2 = plot((tspan_RT-t0)*TU*sec2hrs, u_limit*ones(length(tspan_RT), 1), 'r--', 'LineWidth', 1.2);
-        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-        title('Control Norm')
-        legend([p1, p2], '$|u|$', '$u_{max}$','Location', 'best', 'Fontsize', 12, 'Interpreter', 'latex');
-        hold off
-        
-    end
-
-    [~, terminal_flag] = is_terminal_distance(tspan_ctrl_DA(end), TCC_ctrl_DA(end, :));
-
+if terminal_flag
+    error('Reached Conditions under Saturation!')
 end
 
-if opt.show_progress
-    close(pbar)
-end
+% Define stopSaturationTime
+stopSaturationTime = tspan_ctrl_DA(end);
+
+% Retrive Final Kp
+[~, ~, ~, ~, ~, ~, ~, ~, ~, ~, kp, ~] = HybridPredictiveControl(tspan_ctrl_DA(end), TCC_ctrl_DA(end, :), EarthPPsMCI, SunPPsMCI, muM, ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, stop_sat1);
+
+% Perform Natural Feedback Control
+[tspan_temp, TCC_temp] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, kp, DU, TU, opt.show_progress), ...
+    [tspan_ctrl_DA(end), t0_backdrift_DA], TCC_ctrl_DA(end, :), opt.N, @is_terminal_distance);
 
 % Retrieve Final State Values
+tspan_ctrl_DA = [tspan_ctrl_DA; tspan_temp];
+TCC_ctrl_DA = [TCC_ctrl_DA; TCC_temp];
 TCC_T0 = TCC_ctrl_DA(end, :);           % this will be the initial point for the Terminal Trajectory
 t0_T = tspan_ctrl_DA(end);              % this will be the initial time for the Terminal Trajectory
-
-
-% Show Direct Approach Trajectory
-figure('name', 'Direct Approach Trajectory')
-DrawTrajLVLH3D(TCC_ctrl_DA(:, 7:9)*DU);
 
 fprintf('Reached 50m Distance @ %.2f hrs.\n', (t0_T-t0)*TU/3600)
 
 
-save('Data/temp/Direct Approach Propagation.mat');
+% save('Data/temp/Direct Approach Propagation.mat');
+
+
+% % Show Direct Approach Trajectory
+% figure('name', 'Direct Approach Trajectory')
+% DrawTrajLVLH3D(TCC_ctrl_DA(:, 7:9)*DU);
+% testPPs(RHOdPPsLVLH_DA(1:3), tspan_ctrl_DA);
 
 
 %% Terminal Trajectory: Chaser State Backwards Propagation from Desired Final Conditions
@@ -285,7 +237,7 @@ TCf_backdrift = [MEEft; RHOf_LVLH];
 
 % Perform the Backpropagation of Target and Chaser Trajectories
 [tspan_back, TC_backdrift, t_bwdstop, ~, ~] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_back, TCf_backdrift, optODE_back);
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH, 0), tspan_back, TCf_backdrift, optODE_back);
 
 % Check Successful Back Drift
 if isempty(t_bwdstop)
@@ -297,9 +249,9 @@ TC0_backdrift = TC_backdrift(end, :)';
 t0_backdrift = tspan_back(end);
 
 
-% Show Backdrift Trajectory
-figure('name', 'Backdrift Trajectory')
-DrawTrajLVLH3D(TC_backdrift(:, 7:9)*DU);
+% % Show Backdrift Trajectory
+% figure('name', 'Backdrift Trajectory')
+% DrawTrajLVLH3D(TC_backdrift(:, 7:9)*DU);
 
 
 %% Terminal Trajectory: Generate the Reference Chaser Trajectory
@@ -324,20 +276,11 @@ N_inner_T = round(prediction_delta_T/dt_ref) - 1;       % n° of points in the i
 
 %% Terminal Trajectory: Perform Chaser Rendezvous Manoeuvre and Natural Drift
 
-% load('Debugging.mat');
-
 % Perform Rendezvous Propagation
-if opt.show_progress
-    pbar = waitbar(0, 'Performing the Chaser Rendezvous');
-end
-
-kp = 10;
 [tspan_ctrl, TCC_ctrl] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0_T, RHOdPPsLVLH_T, kp, DU, TU), ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, opt.show_progress), ...
     [t0_T, t0_backdrift], TCC_T0, opt.N);
-if opt.show_progress
-    close(pbar)
-end
+
 
 % Retrieve Final Mass Ratio Value
 x7f = TCC_ctrl(end, 13);
@@ -355,7 +298,11 @@ TC0_drift = TCC_ctrl(end, 1:12);
 
 % Perform the Final Natural Drift of the Chaser
 [tspan_drift, TC_drift, t_fwdstop, ~, ~] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH), tspan_drift, TC0_drift, optODE_fwd);
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH, opt.show_progress), tspan_drift, TC0_drift, optODE_fwd);
+
+if opt.show_progress
+    close(pbar)
+end
 
 % Check Successful Forward Drift
 if isempty(t_fwdstop)
@@ -404,12 +351,6 @@ f_norms = zeros(M, 1);
 kp_store = zeros(1, M);
 kp_type = zeros(1, M);
 
-% Load Saturation Times
-load(stop_sat1);
-stopSaturationTime1 = stopSaturationTime;
-% load(stop_sat2);
-% stopSaturationTime2 = stopSaturationTime;
-stopSaturationTime2 = 0;
 
 % Initialize Terminal Trajectory Variables - TO BE REMOVED
 terminal_tol = 50e-3/DU;    % tolerance for terminal trajectory flag
@@ -433,18 +374,13 @@ for i = 1 : size(RHO_LVLH, 1)
     dist(i) = norm(RHO_MCI(i, 1:3));
     vel(i) = norm(RHO_MCI(i, 4:6));
 
-    % % Compute the Desired State from Via Points interpolation
-    % if tspan(i) <= t_viapoints(end)
-    %     RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH, tspan(i));
-    % end
-
     % Control Quantities
     if i <= M_ctrl_DA       % Direct Approach: hybrid-predictive control law
         
         RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_DA, tspan(i));
         [~, ~, ~, ~, ~, ~, u(:, i), ~, ~, ~, f, f_norms(i), kp_store(i), kp_type(i)] = ...
             HybridPredictivePostProcessing(tspan_ctrl_DA(i), TCC_ctrl_DA(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, RHOdPPsLVLH_DA, DU, TU, check_times_DA, stopSaturationTime1);
+            muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, RHOdPPsLVLH_DA, DU, TU, check_times_DA, stopSaturationTime);
 
         u_norms(i) = norm(u(:, i));    
         
@@ -455,7 +391,7 @@ for i = 1 : size(RHO_LVLH, 1)
         s = i - M_ctrl_DA;              % auxiliary index
         [~, ~, ~, ~, ~, ~, u(:, i), ~, ~, ~, f, f_norms(i), kp_store(i), kp_type(i)] = ...
             HybridPredictivePostProcessing(tspan_ctrl(s), TCC_ctrl(s, :), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, RHOdPPsLVLH_T, DU, TU, check_times_T, stopSaturationTime2);
+            muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, RHOdPPsLVLH_T, DU, TU, check_times_T, 0);
 
         u_norms(i) = norm(u(:, i));
 
@@ -522,6 +458,7 @@ load('Data/temp/Post-Processed Propagation.mat');
 % end
 
 fprintf('Total Runtime: %.1f s.\n', runtime)
+
 
 % % Draw the Target, Chaser and Reference Chaser Trajectories in MCI
 % figure('name', 'Trajectory in MCI Space')

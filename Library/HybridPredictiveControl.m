@@ -15,6 +15,7 @@ if t == t0
 end
 
 debug = 0;
+clock = 0;
 
 
 % ----- Natural Relative Motion ----- %
@@ -119,7 +120,7 @@ if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0
 
     % Perform the Propagation
     [tspan, ControlledRelativeState] = odeHamHPC(@(t, state) NaturalFeedbackControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, ppXd, kp, DU, TU), ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, clock), ...
         [t0_int, tf_int], TCC, N_inner_integration);
 
     % Predictive Propagation Post-Processing
@@ -130,7 +131,7 @@ if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0
         [~, ~, ~, ~, u_future(:,s), ...
             ~, ~, ~, ~] = NaturalFeedbackControl(tspan(s), ...
             ControlledRelativeState(s,:), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, ppXd, kp, DU, TU);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, clock);
         u_norms(s) = norm(u_future(:,s));
     end
     

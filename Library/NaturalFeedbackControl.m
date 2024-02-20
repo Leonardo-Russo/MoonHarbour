@@ -1,9 +1,11 @@
 function[dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm] = NaturalFeedbackControl(t, ...
     TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, ppXd, kp, DU, TU)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, clock)
 
 % ----- Natural Relative Motion ----- %
+
+global pbar
 
 % Initialize State Derivative
 dTCC = zeros(13, 1); 
@@ -110,20 +112,18 @@ dTCC(10:12) = f + u;
 dTCC(13) = x7_dot;
 
 
-% % Clock for the Integration
-% global pbar opt
-% 
-% if opt.show_progress
-%     Day = 86400;  % seconds in a day
-%     Hour = 3600;  % seconds in an hour
-%     Min = 60;     % seconds in a minute
-%     tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
-%     tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
-%     tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
-%     timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
-%     waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
-%     waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
-% end
+% Clock for the Integration
+if clock
+    Day = 86400;  % seconds in a day
+    Hour = 3600;  % seconds in an hour
+    Min = 60;     % seconds in a minute
+    tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
+    tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
+    tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
+    timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
+    waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
+    waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
+end
 
 end
 

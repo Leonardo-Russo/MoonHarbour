@@ -1,5 +1,5 @@
-function dY = NaturalRelativeMotion(t, Y, ...
-                                    EarthPPsMCI, SunPPsMCI, muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH)
+function dY = NaturalRelativeMotion(t, Y, EarthPPsMCI, SunPPsMCI, muE, ...
+    muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH, clock)
 % Description: this is the function with the Dynamical Model for the
 % Relative Motion.
 % 
@@ -39,17 +39,6 @@ RHO_LVLH = Y(7:12);
 
 % Initialize Derivatives Vector
 dY = zeros(12, 1);
-
-% % Clock for the Integration
-% Day = 86400;  % seconds in a day
-% Hour = 3600;  % seconds in an hour
-% Min = 60;     % seconds in a minute
-% tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
-% tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
-% tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
-% timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
-% waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
-% waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
 
 % Retrieve RHO State Variables
 rho_LVLH = RHO_LVLH(1:3);
@@ -118,6 +107,21 @@ dY(1:6) = G*apt_LVLHt;
 dY(6) = dY(6) + sqrt(muM/MEEt(1)^3)*eta^2;
 dY(7:9) = rhodot_LVLH;
 dY(10:12) = -2*cross(omega_LVLH, rhodot_LVLH) - cross(omegadot_LVLH, rho_LVLH) - cross(omega_LVLH, cross(omega_LVLH, rho_LVLH)) + muM/rt^3*((q*(2+q+(1+q)^(1/2)))/((1+q)^(3/2)*((1+q)^(1/2)+1)))*rt_LVLH - muM/rc^3*rho_LVLH + apc_LVLHt - apt_LVLHt;
+
+
+% Clock for the Integration
+if clock
+    Day = 86400;  % seconds in a day
+    Hour = 3600;  % seconds in an hour
+    Min = 60;     % seconds in a minute
+    tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
+    tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
+    tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
+    timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
+    waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
+    waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
+end
+
 
 % % Write log file
 % upd = dY./Y;
