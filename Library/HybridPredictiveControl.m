@@ -1,6 +1,6 @@
 function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f, f_norm, kp_out, k_type] = HybridPredictiveControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, ...
-    MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, DU, TU, checkTimes, Delta_t, N_inner_integration, filepath)
+    MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, DU, TU, checkTimes, Delta_t, N_inner_integration, filepath, misalignment)
 % Description: ...
 
 
@@ -15,6 +15,7 @@ if t == t0
 end
 
 debug = 0;
+clock = 0;      % set to 0 to avoid clock inside predictive propagation
 
 
 % ----- Natural Relative Motion ----- %
@@ -119,7 +120,7 @@ if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0
 
     % Perform the Propagation
     [tspan, ControlledRelativeState] = odeHamHPC(@(t, state) NaturalFeedbackControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, ppXd, kp, DU, TU), ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, clock), ...
         [t0_int, tf_int], TCC, N_inner_integration);
 
     % Predictive Propagation Post-Processing
@@ -130,7 +131,7 @@ if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0
         [~, ~, ~, ~, u_future(:,s), ...
             ~, ~, ~, ~] = NaturalFeedbackControl(tspan(s), ...
             ControlledRelativeState(s,:), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, ppXd, kp, DU, TU);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, clock);
         u_norms(s) = norm(u_future(:,s));
     end
     
@@ -241,8 +242,21 @@ Kp = kp*eye(3,3);
 kd = 2*zeta*sqrt(kp);
 Kd = kd*eye(3,3);
 
-% Compute the Control
-u = -f + rhoddotd_LVLH - Kd*(rhodot_LVLH-rhodotd_LVLH) - Kp*(rho_LVLH -rhod_LVLH);
+% Compute the Nominal Control Thrust
+un = -f + rhoddotd_LVLH - Kd*(rhodot_LVLH-rhodotd_LVLH) - Kp*(rho_LVLH -rhod_LVLH);
+un_hat = un / norm(un);
+un_norm = norm(un);
+
+% Apply Thrust Misalignment
+alphan = atan2(un_hat(2), un_hat(1));
+deltan = asin(un_hat(3));
+beta = misalignment.beta;
+gamma = misalignment.gamma;
+
+ur = un_norm * (sin(gamma) * cos(beta) * sin(alphan) + sin(gamma) * sin(beta) * cos(deltan) * cos(alphan) + cos(gamma) * cos(deltan) * cos(alphan));
+ut = un_norm * (-sin(gamma) * cos(beta) * cos(alphan) + sin(gamma) * sin(beta) * sin(deltan) * sin(alphan) + cos(gamma) * cos(deltan) * sin(alphan));
+uh = un_norm * (-sin(gamma) * sin(beta) * cos(deltan) + cos(gamma) * sin(deltan));
+u = [ur; ut; uh];
 
 % Compute Mass Ratio Derivative
 c = 30/DU*TU;           % effective exhaust velocity = 30 km/s

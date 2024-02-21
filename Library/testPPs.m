@@ -10,8 +10,6 @@ for i = 1 : length(tspan)
     state(i, :) = ppsval(PPs, tspan(i));
 end
 
-
-figure()
 DrawTrajLVLH3D(state(:, 1:3)*DU, '#6efad2', '-.');
 
 

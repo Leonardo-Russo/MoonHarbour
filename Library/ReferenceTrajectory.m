@@ -17,7 +17,7 @@ function [RHOrefPPs, viapoints, tspan_viapoints] = ReferenceTrajectory(TC0, TCf,
 % t0 and tf must be nondimensional.
 % TU must be expressed in seconds.
 
-debug = 1;
+debug = 0;
 
 
 global DU
