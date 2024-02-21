@@ -1,23 +1,11 @@
-%% Moon Harbour Project - Leonardo Russo
-
-close all
-clear
-clc
-                                                                                
-addpath('Library/')
-addpath('Library/Dario/')
-addpath('Data/')
-addpath('Data/Planets/')
-addpath('Data/Materials/')
-addpath('Data/temp/')
-
+function [RHO_LVLH, M_ctrl_DA] = fullsim(beta, gamma)
 
 % Introduce Options Structure
 global opt
 opt = struct('name', "Progator Options");
 opt.saveplots = false;
 opt.create_animation = false;
-opt.show_progress = true;
+opt.show_progress = false;
 opt.compute_target = false;
 
 % Define options for ode113()
@@ -34,7 +22,7 @@ stop_sat1 = 'Data/temp/stop_sat1.mat';
 stop_sat2 = 'Data/temp/stop_sat2.mat';
 
 % Define Thrust Misalignment
-misalignment = define_misalignment_error("const");
+misalignment = define_misalignment_error("montecarlo", beta, gamma);
 
 tic
 %% Hyperparameters and Settings
@@ -459,7 +447,7 @@ load('Data/temp/Post-Processed Propagation.mat');
 %     end
 % end
 
-fprintf('Total Runtime: %.1f s.\n', runtime)
+% fprintf('Total Runtime: %.1f s.\n', runtime)
 
 
 % % Draw the Target, Chaser and Reference Chaser Trajectories in MCI
@@ -474,182 +462,183 @@ fprintf('Total Runtime: %.1f s.\n', runtime)
 % end
 
 
-% Visualize Chaser State in LVLH
-figure('name', 'Chaser Trajectory in LVLH Space')
-C_LVLH = DrawTrajLVLH3D(RHO_LVLH(:, 1:3)*DU);
-Cd_LVLH = DrawTrajLVLH3D(RHOd_LVLH(:, 1:3)*DU, '#6efad2', '-.');
-vp_T = plot3(viapoints_T(:, 1)*DU, viapoints_T(:, 2)*DU, viapoints_T(:, 3)*DU, 'color', 'r', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
-vp_DA = plot3(viapoints_DA(:, 1)*DU, viapoints_DA(:, 2)*DU, viapoints_DA(:, 3)*DU, 'color', 'b', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
-title('Chaser LVLH Trajectory')
-legend([C_LVLH, Cd_LVLH, vp_T, vp_DA], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points', 'Direct Approach Via Points'}, 'location', 'best')
-if opt.saveplots
-    saveas(gcf, strcat('Output/Trajectory LVLH.jpg'))
+% % Visualize Chaser State in LVLH
+% figure('name', 'Chaser Trajectory in LVLH Space')
+% C_LVLH = DrawTrajLVLH3D(RHO_LVLH(:, 1:3)*DU);
+% Cd_LVLH = DrawTrajLVLH3D(RHOd_LVLH(:, 1:3)*DU, '#6efad2', '-.');
+% vp_T = plot3(viapoints_T(:, 1)*DU, viapoints_T(:, 2)*DU, viapoints_T(:, 3)*DU, 'color', 'r', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
+% vp_DA = plot3(viapoints_DA(:, 1)*DU, viapoints_DA(:, 2)*DU, viapoints_DA(:, 3)*DU, 'color', 'b', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
+% title('Chaser LVLH Trajectory')
+% legend([C_LVLH, Cd_LVLH, vp_T, vp_DA], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points', 'Direct Approach Via Points'}, 'location', 'best')
+% if opt.saveplots
+%     saveas(gcf, strcat('Output/Trajectory LVLH.jpg'))
+% end
+% 
+% 
+% % Visualize the Terminal Chaser State in LVLH
+% figure('name', 'Terminal Chaser Trajectory in LVLH Space')
+% C_LVLH_T = DrawTrajLVLH3D(RHO_LVLH(M_ctrl_DA:end, 1:3)*DU);
+% Cd_LVLH_T = DrawTrajLVLH3D(RHOd_LVLH(M_ctrl_DA:end, 1:3)*DU, '#6efad2', '-.');
+% vp_T = plot3(viapoints_T(:, 1)*DU, viapoints_T(:, 2)*DU, viapoints_T(:, 3)*DU, 'color', 'r', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
+% title('Terminal Chaser LVLH Trajectory')
+% legend([C_LVLH_T, Cd_LVLH_T, vp_T], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points'}, 'location', 'best')
+% if opt.saveplots
+%     saveas(gcf, strcat('Output/Trajectory Terminal LVLH.jpg'))
+% end
+
+
+% % Visualize LVLH State Components
+% figure('name', 'Chaser LVLH State Components')
+% subplot(2, 3, 1)
+% plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 1)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+% hold on
+% plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 1)*DU, 'color', '#4195e8', 'LineWidth', 1.5)
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$\rho_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+% legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
+% grid on
+% 
+% subplot(2, 3, 2)
+% plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 2)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+% hold on
+% plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 2)*DU, 'color', '#4195e8', 'LineWidth', 1.5)
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$\rho_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+% legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
+% grid on
+% 
+% subplot(2, 3, 3)
+% plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 3)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+% hold on
+% plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 3)*DU, 'color', '#4195e8', 'LineWidth', 1.5)
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$\rho_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+% legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
+% grid on
+% 
+% subplot(2, 3, 4)
+% plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 4)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+% hold on
+% plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 4)*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$\dot{\rho}_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+% legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
+% grid on
+% 
+% subplot(2, 3, 5)
+% plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 5)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+% hold on
+% plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 5)*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$\dot{\rho}_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+% legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
+% grid on
+% 
+% subplot(2, 3, 6)
+% plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 6)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+% hold on
+% plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 6)*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$\dot{\rho}_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+% legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
+% grid on
+% if opt.saveplots
+%     saveas(gcf, strcat('Output/State LVLH Components.jpg'))
+% end
+% 
+% 
+% % Draw the norms of distance and velocity
+% figure('Name', 'Distance and Velocity Norms')
+% subplot(1, 2, 1)
+% plot((tspan-t0)*TU*sec2hrs, dist*DU, 'color', '#4195e8', 'LineWidth', 1.5)
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$|\rho| \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+% title('Relative Distance')
+% grid on
+% subplot(1, 2, 2)
+% plot((tspan-t0)*TU*sec2hrs, vel*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$|v| \ [km/s]$', 'interpreter', 'latex', 'fontsize', 12)
+% title('Relative Velocity')
+% grid on
+% if opt.saveplots
+%     saveas(gcf, strcat('Output/Relative Distance and Velocity.jpg'))
+% end
+% 
+% 
+% % Visualize Control Norm
+% figure('name', 'Control Thrust')
+% p1 = plot((tspan-t0)*TU*sec2hrs, u_norms*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
+% hold on
+% p2 = plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
+% p3 = plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+% title('Control Norm')
+% legend([p1, p2, p3], '$|u|$', '$u_{max}$', '$f$','Location', 'south', 'Fontsize', 12, 'Interpreter', 'latex');
+% hold off
+% 
+% zoomPos = [0.5, 0.6, 0.3, 0.25]; % set position of the zoomed plot [left, bottom, width, height]
+% axes('position', zoomPos);
+% box on  % adds a box around the new axes
+% plot((tspan-t0)*TU*sec2hrs, u_norms*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
+% hold on
+% plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
+% plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
+% grid on
+% 
+% xlim([(t0_T-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]);   % set the x and y limits for the zoomed plot based on the final part of the data
+% ylim([-u_limit(1)/2, u_limit(1)/2]);
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
+% ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
+% 
+% if opt.saveplots
+%     saveas(gcf, strcat('Output/Control Norm.jpg'))
+% end
+% 
+% 
+% 
+% % Visualize Control Components
+% figure('name', 'Control Thrust Components')
+% u1 = plot((tspan-t0)*TU*sec2hrs, u(1,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+% hold on
+% u2 = plot((tspan-t0)*TU*sec2hrs, u(2,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+% u3 = plot((tspan-t0)*TU*sec2hrs, u(3,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+% ulim = plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+% title('Control Components')
+% grid on
+% legend([u1, u2, u3, ulim], '$u_r$', '$u_{\theta}$', '$u_h$', '$u_{max}$','Location', 'southeast', 'Fontsize', 12, 'Interpreter','latex');
+% hold off
+% 
+% zoomPos = [0.5, 0.6, 0.3, 0.25];    % set position of the zoomed plot [left, bottom, width, height]
+% axes('position', zoomPos);
+% box on  % adds a box around the new axes
+% plot((tspan-t0)*TU*sec2hrs, u(1,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+% hold on
+% plot((tspan-t0)*TU*sec2hrs, u(2,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+% plot((tspan-t0)*TU*sec2hrs, u(3,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+% plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
+% grid on
+% 
+% xlim([(t0_T-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]); % set the x and y limits to focus on the final part of the plot
+% ylim([-u_limit(1)/2, u_limit(1)/2]);
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
+% ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
+% 
+% if opt.saveplots
+%     saveas(gcf, strcat('Output/Control Components.jpg'))
+% end
+% 
+% 
+% 
+% 
+% 
+% 
+% if opt.create_animation
+%     figure('name', 'Rendezvous and Docking Animation', 'WindowState', 'maximized')
+%     DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, RHO_LVLH, bookmark, opt)
+% end
+
 end
-
-
-% Visualize the Terminal Chaser State in LVLH
-figure('name', 'Terminal Chaser Trajectory in LVLH Space')
-C_LVLH_T = DrawTrajLVLH3D(RHO_LVLH(M_ctrl_DA:end, 1:3)*DU);
-Cd_LVLH_T = DrawTrajLVLH3D(RHOd_LVLH(M_ctrl_DA:end, 1:3)*DU, '#6efad2', '-.');
-vp_T = plot3(viapoints_T(:, 1)*DU, viapoints_T(:, 2)*DU, viapoints_T(:, 3)*DU, 'color', 'r', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
-title('Terminal Chaser LVLH Trajectory')
-legend([C_LVLH_T, Cd_LVLH_T, vp_T], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points'}, 'location', 'best')
-if opt.saveplots
-    saveas(gcf, strcat('Output/Trajectory Terminal LVLH.jpg'))
-end
-
-
-% Visualize LVLH State Components
-figure('name', 'Chaser LVLH State Components')
-subplot(2, 3, 1)
-plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 1)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
-hold on
-plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 1)*DU, 'color', '#4195e8', 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$\rho_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
-grid on
-
-subplot(2, 3, 2)
-plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 2)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
-hold on
-plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 2)*DU, 'color', '#4195e8', 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$\rho_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
-grid on
-
-subplot(2, 3, 3)
-plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 3)*DU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
-hold on
-plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 3)*DU, 'color', '#4195e8', 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$\rho_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
-grid on
-
-subplot(2, 3, 4)
-plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 4)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
-hold on
-plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 4)*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$\dot{\rho}_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
-grid on
-
-subplot(2, 3, 5)
-plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 5)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
-hold on
-plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 5)*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$\dot{\rho}_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
-grid on
-
-subplot(2, 3, 6)
-plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 6)*DU/TU, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
-hold on
-plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 6)*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$\dot{\rho}_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
-grid on
-if opt.saveplots
-    saveas(gcf, strcat('Output/State LVLH Components.jpg'))
-end
-
-
-% Draw the norms of distance and velocity
-figure('Name', 'Distance and Velocity Norms')
-subplot(1, 2, 1)
-plot((tspan-t0)*TU*sec2hrs, dist*DU, 'color', '#4195e8', 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$|\rho| \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
-title('Relative Distance')
-grid on
-subplot(1, 2, 2)
-plot((tspan-t0)*TU*sec2hrs, vel*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$|v| \ [km/s]$', 'interpreter', 'latex', 'fontsize', 12)
-title('Relative Velocity')
-grid on
-if opt.saveplots
-    saveas(gcf, strcat('Output/Relative Distance and Velocity.jpg'))
-end
-
-
-% Visualize Control Norm
-figure('name', 'Control Thrust')
-p1 = plot((tspan-t0)*TU*sec2hrs, u_norms*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
-hold on
-p2 = plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
-p3 = plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-title('Control Norm')
-legend([p1, p2, p3], '$|u|$', '$u_{max}$', '$f$','Location', 'south', 'Fontsize', 12, 'Interpreter', 'latex');
-hold off
-
-zoomPos = [0.5, 0.6, 0.3, 0.25]; % set position of the zoomed plot [left, bottom, width, height]
-axes('position', zoomPos);
-box on  % adds a box around the new axes
-plot((tspan-t0)*TU*sec2hrs, u_norms*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
-hold on
-plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
-plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
-grid on
-
-xlim([(t0_T-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]);   % set the x and y limits for the zoomed plot based on the final part of the data
-ylim([-u_limit(1)/2, u_limit(1)/2]);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
-
-if opt.saveplots
-    saveas(gcf, strcat('Output/Control Norm.jpg'))
-end
-
-
-
-% Visualize Control Components
-figure('name', 'Control Thrust Components')
-u1 = plot((tspan-t0)*TU*sec2hrs, u(1,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-hold on
-u2 = plot((tspan-t0)*TU*sec2hrs, u(2,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-u3 = plot((tspan-t0)*TU*sec2hrs, u(3,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-ulim = plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-title('Control Components')
-grid on
-legend([u1, u2, u3, ulim], '$u_r$', '$u_{\theta}$', '$u_h$', '$u_{max}$','Location', 'southeast', 'Fontsize', 12, 'Interpreter','latex');
-hold off
-
-zoomPos = [0.5, 0.6, 0.3, 0.25];    % set position of the zoomed plot [left, bottom, width, height]
-axes('position', zoomPos);
-box on  % adds a box around the new axes
-plot((tspan-t0)*TU*sec2hrs, u(1,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-hold on
-plot((tspan-t0)*TU*sec2hrs, u(2,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-plot((tspan-t0)*TU*sec2hrs, u(3,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
-grid on
-
-xlim([(t0_T-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]); % set the x and y limits to focus on the final part of the plot
-ylim([-u_limit(1)/2, u_limit(1)/2]);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
-
-if opt.saveplots
-    saveas(gcf, strcat('Output/Control Components.jpg'))
-end
-
-
-
-
-
-
-if opt.create_animation
-    figure('name', 'Rendezvous and Docking Animation', 'WindowState', 'maximized')
-    DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, RHO_LVLH, bookmark, opt)
-end
-
