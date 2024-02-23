@@ -16,7 +16,7 @@ global opt
 opt = struct('name', "Progator Options");
 opt.saveplots = false;
 opt.create_animation = false;
-opt.show_progress = true;
+opt.show_progress = false;
 opt.compute_target = false;
 
 % Define options for ode113()
@@ -153,7 +153,7 @@ TC0_backdrift_DA = TC_backdrift_DA(end, :)';
 t0_backdrift_DA = tspan_back_DA(end);
 
 
-%% Direct Approach: Generate the Reference Chaser Trajectory
+%% Direct Approach: Generate the Reference Chaser Trajectory for Hybrid Predictive Control
 
 % Set the Via Points and Interpolate the Reference Trajectory
 [RHOdPPsLVLH_DA, viapoints_DA, t_viapoints_DA] = ReferenceTrajectory(TC0, TC0_backdrift_DA, t0, t0_backdrift_DA, [0, 1]);
@@ -255,47 +255,114 @@ t0_backdrift = tspan_back(end);
 % DrawTrajLVLH3D(TC_backdrift(:, 7:9)*DU);
 
 
-%% Terminal Trajectory: Generate the Reference Chaser Trajectory
+%% Terminal Trajectory: Perform Chaser Rendezvous Manoeuvre and Natural Drift
 
 % Set the Via Points and Interpolate the Reference Trajectory
 [RHOdPPsLVLH_T, viapoints_T, t_viapoints_T] = ReferenceTrajectory(TCC_T0(1:12), TC0_backdrift, t0_T, t0_backdrift, [0, 1]);
-
-% Control Settings
-prediction_interval_T = 120;                  % s - one prediction every 2 minutes
-prediction_dt_T = prediction_interval_T/TU;     % adim - prediction interval adimensionalized
-
-prediction_maxlength_T = fix((t0_backdrift-t0_T)*TU/prediction_interval_T);        % max length of the predictive controls
-check_times_T = zeros(prediction_maxlength_T, 1);           % gets all the times at which one should check in continue to saturate by future prediction
-
-for k = 1 : prediction_maxlength_T
-    check_times_T(k) = t0_T + (k-1) * prediction_dt_T;        % compute the check_times vector
-end
-
-prediction_delta_T = (30*60)/TU;      % predictive propagation of 30 min forward
-N_inner_T = round(prediction_delta_T/dt_ref) - 1;       % n° of points in the inner propagation
-
-
-%% Terminal Trajectory: Perform Chaser Rendezvous Manoeuvre and Natural Drift
 
 % Perform Rendezvous Propagation
 [tspan_ctrl, TCC_ctrl] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, opt.show_progress), ...
     [t0_T, t0_backdrift], TCC_T0, opt.N);
 
-
-% Retrieve Final Mass Ratio Value
+% Store Final Mass Ratio Value
 x7f = TCC_ctrl(end, 13);
-bookmark = length(tspan_ctrl);
+
+% save('Data/attitude.mat');
+
+%% Attitude
+
+close all
+clear
+load('Data/attitude.mat');
+clc
+
+debug = 1;
+
+% Retrieve Commanded Attitude via [xc, yc, zc] in MCI
+M_ctrl = length(tspan_ctrl);
+xc_MCI = zeros(M_ctrl, 3);
+yc_MCI = zeros(M_ctrl, 3);
+zc_MCI = zeros(M_ctrl, 3);
+R_N2C = zeros(3, 3, M_ctrl);
+Q_N2C = zeros(M_ctrl, 4);
+
+MEEt_T = TCC_ctrl(:, 1:6);      % retrieve Target State
+COEt_T = MEE2COE(MEEt_T);
+Xt_MCI_T = COE2rvPCI(COEt_T, muM);
+
+c3_MCI = [0, 0, 1];
+
+for i = 1 : M_ctrl
+    
+    % Retrieve Thrust Acceleration in LVLH
+    [~, ~, ~, ~, u, ~, ~, ~, ~] = NaturalFeedbackControl(tspan_ctrl(i), TCC_ctrl(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0);
+    xc_LVLH = u / norm(u);      % normalize to find xc versor in LVLH
+
+    % Rotate from LVLH to MCI
+    [R_LVLH2MCI, ~] = get_rotLVLH2MCI(Xt_MCI_T(i, :)', tspan_ctrl(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
+    xc_MCI(i, :) = R_LVLH2MCI*xc_LVLH;
+    yc_MCI(i, :) = cross(c3_MCI, xc_MCI(i, :)')/norm(cross(c3_MCI, xc_MCI(i, :)'));
+    zc_MCI(i, :) = cross(xc_MCI(i, :)', yc_MCI(i, :)');
+
+    R_N2C(:, :, i) = [xc_MCI(i, :)', yc_MCI(i, :)', zc_MCI(i, :)']';
+
+    [q0c, qc] = C2q(R_N2C(:, :, i));
+    Q_N2C(i, :) = [q0c, qc'];
+    
+    if debug            % show attitude evolution
+        T = eye(4);
+        T(1:3, 1:3) = R_N2C(:, :, i);       % rotation from MCI to Commanded
+        if i == 1
+            figure('Name', 'Attitude Evolution');
+            frame = show_frame(T, '#349beb', 'C');
+            N = show_frame(eye(4), '#000000', 'MCI');
+            axis([-1, 1, -1, 1, -1, 1])
+            grid on
+        else
+            update_frame(frame, T);
+        end
+    end
+
+end
+
+% Interpolate R_N2C and compute its derivative
+R_N2C_PPs = get_rotPPs(tspan_ctrl, R_N2C);
+Rdot_N2C_PPs = fnder_rots(R_N2C_PPs);
+
+% Compute angular velocity of Commanded Attitude and its derivative
+omega_c = zeros(M_ctrl, 3);
+for i = 1 : M_ctrl
+    Rdot_N2C = rotppsval(Rdot_N2C_PPs, tspan_ctrl(i));
+    omega_c(i, :) = unskew(-Rdot_N2C * R_N2C(:, :, i)');
+end
+omega_cPPs = get_statePP(tspan_ctrl, omega_c);
+
+omegadot_c_PPs = [fnder(omega_cPPs(1), 1);
+                  fnder(omega_cPPs(2), 1);
+                  fnder(omega_cPPs(3), 1)];
+
+if debug
+    figure('name', 'Attitude Quaternions')
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 1), 'LineWidth', 1.5)
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 2), 'LineWidth', 1.5)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 3), 'LineWidth', 1.5)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 4), 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
+    grid on
+end
 
 
-% Define Backward Drift Propagation Settings
-optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_fwd(t, Y));
+%% Final Natural Drift
 
-% Define the Forward Drift tspan
-tspan_drift = linspace(tspan_ctrl(end), tf + abs(tf-tspan_ctrl(end)), opt.N);
-
-% Define Initial Conditions
-TC0_drift = TCC_ctrl(end, 1:12);
+% Define Forward Drift Propagation Parameters
+tspan_drift = linspace(tspan_ctrl(end), tf + abs(tf-tspan_ctrl(end)), opt.N);                   % define the Forward Drift tspan
+TC0_drift = TCC_ctrl(end, 1:12);                                                                % define Initial Conditions
+optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_fwd(t, Y));     % define options
 
 % Perform the Final Natural Drift of the Chaser
 [tspan_drift, TC_drift, t_fwdstop, ~, ~] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
@@ -351,10 +418,12 @@ RHOd_LVLH = zeros(M_ctrl_DA + M_ctrl, 9);
 Xc_MCI = zeros(M, 6);
 dist = zeros(M, 1);
 vel = zeros(M, 1);
-u = zeros(3, M);
+u = zeros(M, 3);
 u_norms = zeros(M, 1);
 f_norms = zeros(M, 1);
-kp_store = zeros(1, M);
+kp_store = zeros(M, 1);
+
+acc = zeros(M, 3);
 
 
 % Perform Post-Processing
@@ -375,32 +444,34 @@ for i = 1 : size(RHO_LVLH, 1)
     % Direct Approach: Hybrid-Predictive Feedback Control Law
     if i <= M_ctrl_DA
         
-        [~, ~, ~, ~, u(:, i), ~, ~, ~, ~, f_norms(i), kp_store(i), ~] = ...
+        [dY, ~, ~, ~, u(i, :), ~, ~, ~, ~, f_norms(i), kp_store(i), ~] = ...
             HybridPredictiveControlPostProcessing(tspan_ctrl_DA(i), TCC_ctrl_DA(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
             muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, stopSaturationTime, misalignment);
         RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_DA, tspan(i));
-        u_norms(i) = norm(u(:, i));    
+        u_norms(i) = norm(u(i, :));    
     
     % Terminal Trajectory: Natural Feedback Control Law
     elseif i > M_ctrl_DA && i <= M_ctrl_DA + M_ctrl
 
         s = i - M_ctrl_DA;              % auxiliary index
-        [~, ~, ~, ~, u(:, i), ~, ~, ~, f_norms(i)] = ...
+        [dY, ~, ~, ~, u(i, :), ~, ~, ~, f_norms(i)] = ...
             NaturalFeedbackControl(tspan_ctrl(s), TCC_ctrl(s, :), EarthPPsMCI, SunPPsMCI, muM, ...
             muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0);
         RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_T, tspan(i));
         kp_store(i) = kp;
-        u_norms(i) = norm(u(:, i));
+        u_norms(i) = norm(u(i, :));
 
     % Terminal Trajectory: Natural Drift
     elseif i > M_ctrl_DA + M_ctrl
         
         s = i - M_ctrl_DA - M_ctrl;     % auxiliary index
-        [~, ~, ~, ~, f] = NaturalRelativeMotion(tspan_drift(s), TC_drift(s,:)', EarthPPsMCI, SunPPsMCI, ...
+        [dY, ~, ~, ~, f] = NaturalRelativeMotion(tspan_drift(s), TC_drift(s,:)', EarthPPsMCI, SunPPsMCI, ...
             muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH, 0);
         f_norms(i) = norm(f);
 
     end
+
+    acc(i, :) = dY(10:12);
     
     % Update Progress Bar
     if opt.show_progress
@@ -423,9 +494,8 @@ save('Data/temp/Post-Processed Propagation.mat');
 
 close all
 clear
-clc
-
 load('Data/temp/Post-Processed Propagation.mat');
+clc
 
 
 % Show Runtime
@@ -582,10 +652,10 @@ end
 
 % Visualize Control Components
 figure('name', 'Control Thrust Components')
-u1 = plot((tspan-t0)*TU*sec2hrs, u(1,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+u1 = plot((tspan-t0)*TU*sec2hrs, u(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
 hold on
-u2 = plot((tspan-t0)*TU*sec2hrs, u(2,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-u3 = plot((tspan-t0)*TU*sec2hrs, u(3,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+u2 = plot((tspan-t0)*TU*sec2hrs, u(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+u3 = plot((tspan-t0)*TU*sec2hrs, u(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
 ulim = plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
@@ -597,10 +667,10 @@ hold off
 zoomPos = [0.5, 0.6, 0.3, 0.25];    % set position of the zoomed plot [left, bottom, width, height]
 axes('position', zoomPos);
 box on  % adds a box around the new axes
-plot((tspan-t0)*TU*sec2hrs, u(1,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+plot((tspan-t0)*TU*sec2hrs, u(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
 hold on
-plot((tspan-t0)*TU*sec2hrs, u(2,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-plot((tspan-t0)*TU*sec2hrs, u(3,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+plot((tspan-t0)*TU*sec2hrs, u(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+plot((tspan-t0)*TU*sec2hrs, u(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
 plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
 grid on
 
@@ -614,9 +684,39 @@ if opt.saveplots
 end
 
 
+% Visualize LVLH State Components
+figure('name', 'Chaser LVLH Acceleration')
+subplot(1, 3, 1)
+plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 7)*DU/TU^2, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+hold on
+plot((tspan-t0)*TU*sec2hrs, acc(:, 1)*DU/TU^2, 'color', '#4195e8', 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\rho_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
+grid on
 
-if opt.create_animation
-    figure('name', 'Rendezvous and Docking Animation', 'WindowState', 'maximized')
-    DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, RHO_LVLH, bookmark, opt)
-end
+subplot(1, 3, 2)
+plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 8)*DU/TU^2, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+hold on
+plot((tspan-t0)*TU*sec2hrs, acc(:, 2)*DU/TU^2, 'color', '#4195e8', 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\rho_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
+grid on
+
+subplot(1, 3, 3)
+plot((tspan(1:size(RHOd_LVLH, 1))-t0)*TU*sec2hrs, RHOd_LVLH(:, 9)*DU/TU^2, 'color', '#6efad2', 'LineStyle', '-.', 'LineWidth', 1.2)
+hold on
+plot((tspan-t0)*TU*sec2hrs, acc(:, 3)*DU/TU^2, 'color', '#4195e8', 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\rho_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
+grid on
+
+
+
+% if opt.create_animation
+%     figure('name', 'Rendezvous and Docking Animation', 'WindowState', 'maximized')
+%     DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, RHO_LVLH, bookmark, opt)
+% end
 
