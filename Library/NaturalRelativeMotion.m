@@ -1,4 +1,4 @@
-function dY = NaturalRelativeMotion(t, Y, EarthPPsMCI, SunPPsMCI, muE, ...
+function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHc, f] = NaturalRelativeMotion(t, Y, EarthPPsMCI, SunPPsMCI, muE, ...
     muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH, clock)
 % Description: this is the function with the Dynamical Model for the
 % Relative Motion.
@@ -101,12 +101,15 @@ rt = norm(rt_LVLH);
 rc = norm(rc_MCI);
 q = (dot(rho_LVLH, rho_LVLH) + 2*dot(rho_LVLH, rt_LVLH))/rt^2;
 
+% Compute Non-linearities
+f = -2*cross(omega_LVLH, rhodot_LVLH) - cross(omegadot_LVLH, rho_LVLH) - cross(omega_LVLH, cross(omega_LVLH, rho_LVLH)) + muM/rt^3*((q*(2+q+(1+q)^(1/2)))/((1+q)^(3/2)*((1+q)^(1/2)+1)))*rt_LVLH - muM/rc^3*rho_LVLH + apc_LVLHt - apt_LVLHt;
+
 
 % Assign State Derivatives
 dY(1:6) = G*apt_LVLHt;
 dY(6) = dY(6) + sqrt(muM/MEEt(1)^3)*eta^2;
 dY(7:9) = rhodot_LVLH;
-dY(10:12) = -2*cross(omega_LVLH, rhodot_LVLH) - cross(omegadot_LVLH, rho_LVLH) - cross(omega_LVLH, cross(omega_LVLH, rho_LVLH)) + muM/rt^3*((q*(2+q+(1+q)^(1/2)))/((1+q)^(3/2)*((1+q)^(1/2)+1)))*rt_LVLH - muM/rc^3*rho_LVLH + apc_LVLHt - apt_LVLHt;
+dY(10:12) = f;
 
 
 % Clock for the Integration

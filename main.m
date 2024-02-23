@@ -5,7 +5,6 @@ clear
 clc
                                                                                 
 addpath('Library/')
-addpath('Library/Dario/')
 addpath('Data/')
 addpath('Data/Planets/')
 addpath('Data/Materials/')
@@ -204,7 +203,7 @@ stopSaturationTime = tspan_ctrl_DA(end);
 
 % Perform Natural Feedback Control
 [tspan_temp, TCC_temp] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, kp, DU, TU, opt.show_progress), ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, kp, DU, TU, misalignment, opt.show_progress), ...
     [tspan_ctrl_DA(end), t0_backdrift_DA], TCC_ctrl_DA(end, :), opt.N, @is_terminal_distance);
 
 % Retrieve Final State Values
@@ -280,7 +279,7 @@ N_inner_T = round(prediction_delta_T/dt_ref) - 1;       % n° of points in the i
 
 % Perform Rendezvous Propagation
 [tspan_ctrl, TCC_ctrl] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, opt.show_progress), ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, opt.show_progress), ...
     [t0_T, t0_backdrift], TCC_T0, opt.N);
 
 
@@ -323,7 +322,13 @@ save('Data/temp/Raw Propagation.mat');
 
 %% Post-Processing
 
+close all
+clear
+clc
+
 load('Data/temp/Raw Propagation.mat');
+
+opt.show_progress = true;
 
 % Retrieve States from Propagation
 MEEt = TCC(:, 1:6);
@@ -348,18 +353,9 @@ dist = zeros(M, 1);
 vel = zeros(M, 1);
 u = zeros(3, M);
 u_norms = zeros(M, 1);
-f = zeros(3, M);
 f_norms = zeros(M, 1);
 kp_store = zeros(1, M);
-kp_type = zeros(1, M);
 
-
-% Initialize Terminal Trajectory Variables - TO BE REMOVED
-terminal_tol = 50e-3/DU;    % tolerance for terminal trajectory flag
-RHO_LVLH_T = [];
-RHOd_LVLH_T = [];
-terminal_flag = zeros(M, 1);
-terminal_signchange = 0;
 
 % Perform Post-Processing
 if opt.show_progress
@@ -376,57 +372,35 @@ for i = 1 : size(RHO_LVLH, 1)
     dist(i) = norm(RHO_MCI(i, 1:3));
     vel(i) = norm(RHO_MCI(i, 4:6));
 
-    % Control Quantities
-    if i <= M_ctrl_DA                                   % Direct Approach: Hybrid-Predictive Feedback Control Law
+    % Direct Approach: Hybrid-Predictive Feedback Control Law
+    if i <= M_ctrl_DA
         
+        [~, ~, ~, ~, u(:, i), ~, ~, ~, ~, f_norms(i), kp_store(i), ~] = ...
+            HybridPredictiveControlPostProcessing(tspan_ctrl_DA(i), TCC_ctrl_DA(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, stopSaturationTime, misalignment);
         RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_DA, tspan(i));
-        [~, ~, ~, ~, ~, ~, u(:, i), ~, ~, ~, f, f_norms(i), kp_store(i), kp_type(i)] = ...
-            HybridPredictivePostProcessing(tspan_ctrl_DA(i), TCC_ctrl_DA(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, RHOdPPsLVLH_DA, DU, TU, check_times_DA, stopSaturationTime);
-
         u_norms(i) = norm(u(:, i));    
-        
-    elseif i > M_ctrl_DA && i <= M_ctrl_DA + M_ctrl     % Terminal Trajectory: Natural Feedback Control Law
-
-        RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_T, tspan(i));
+    
+    % Terminal Trajectory: Natural Feedback Control Law
+    elseif i > M_ctrl_DA && i <= M_ctrl_DA + M_ctrl
 
         s = i - M_ctrl_DA;              % auxiliary index
-        [~, ~, ~, ~, ~, ~, u(:, i), ~, ~, ~, f, f_norms(i), kp_store(i), kp_type(i)] = ...
-            HybridPredictivePostProcessing(tspan_ctrl(s), TCC_ctrl(s, :), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, time, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, RHOdPPsLVLH_T, DU, TU, check_times_T, 0);
-
+        [~, ~, ~, ~, u(:, i), ~, ~, ~, f_norms(i)] = ...
+            NaturalFeedbackControl(tspan_ctrl(s), TCC_ctrl(s, :), EarthPPsMCI, SunPPsMCI, muM, ...
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0);
+        RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_T, tspan(i));
+        kp_store(i) = kp;
         u_norms(i) = norm(u(:, i));
 
-    elseif i > M_ctrl_DA + M_ctrl                       % Terminal Trajectory: Natural Drift
+    % Terminal Trajectory: Natural Drift
+    elseif i > M_ctrl_DA + M_ctrl
         
         s = i - M_ctrl_DA - M_ctrl;     % auxiliary index
-        [~, ~, ~, ~, ~, ~, f(:, i)] = NaturalRelativeMotion_PostProcessing(tspan_drift(s), TC_drift(s,:)', EarthPPsMCI, SunPPsMCI, muE, muS, ...
-            MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH);
-
-        f_norms(i) = norm(f(:, i));
+        [~, ~, ~, ~, f] = NaturalRelativeMotion(tspan_drift(s), TC_drift(s,:)', EarthPPsMCI, SunPPsMCI, ...
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, t0, tf, omegadotPPsLVLH, 0);
+        f_norms(i) = norm(f);
 
     end
-
-    % % Emergency Sphere Crossing Check
-    % if dist(i) <= terminal_tol
-    %     RHO_LVLH_T = [RHO_LVLH_T; RHO_LVLH(i, :)];
-    %     if tspan(i) < t_viapoints(end)
-    %         RHOd_LVLH_T = [RHOd_LVLH_T; RHOd_LVLH(i, :)];
-    %     end
-    %     terminal_flag(i) = 1;
-    %     if i > 1
-    %         if terminal_flag(i-1) == 0
-    %             terminal_signchange = terminal_signchange + 1;
-    %         end
-    %     end
-    % else
-    %     terminal_flag(i) = 0;
-    %     if i > 1
-    %         if terminal_flag(i-1) == 1
-    %             terminal_signchange = terminal_signchange + 1;
-    %         end
-    %     end
-    % end
     
     % Update Progress Bar
     if opt.show_progress
@@ -453,12 +427,8 @@ clc
 
 load('Data/temp/Post-Processed Propagation.mat');
 
-% for j = 1 : length(tspan_ctrl)
-%     if dist(j) < 10e-3/DU
-%         warning('The trajectory crosses 10m!')
-%     end
-% end
 
+% Show Runtime
 fprintf('Total Runtime: %.1f s.\n', runtime)
 
 
@@ -642,9 +612,6 @@ ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
 if opt.saveplots
     saveas(gcf, strcat('Output/Control Components.jpg'))
 end
-
-
-
 
 
 

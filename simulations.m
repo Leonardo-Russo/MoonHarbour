@@ -10,6 +10,7 @@ addpath('Data/')
 addpath('Data/Planets/')
 addpath('Data/Materials/')
 addpath('Data/temp/')
+addpath('Simulations/')
 
 % Define the n° of simulations
 MC = 60;
@@ -34,14 +35,14 @@ parfor mc = 1 : MC
 
 end
 
-save('montecarlo.mat');
+save('Simulations/Results/montecarlo.mat');
 
 
 %% Visualize the Results
 
 close all
 clear
-load('montecarlo.mat');
+load('Simulations/Results/montecarlo.mat');
 clc
 
 saveplots = 1;

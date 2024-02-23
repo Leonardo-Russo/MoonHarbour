@@ -14,8 +14,9 @@ mis = struct("name", "Misalignment Parameters");
 
 
 if choice == "const"
-    mis.beta = deg2rad(45);
-    mis.gamma = deg2rad(1);
+    [beta, gamma] = define_distributions(1);
+    mis.beta = beta;
+    mis.gamma = gamma;
 elseif choice == "null"
     mis.beta = 0;
     mis.gamma = 0;

@@ -1,7 +1,7 @@
-function[dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
+function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm] = NaturalFeedbackControl(t, ...
     TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, clock)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, misalignment, clock)
 
 % ----- Natural Relative Motion ----- %
 
@@ -95,8 +95,21 @@ zeta = 1;       % condition of critical damping
 kd = 2*zeta*sqrt(kp);
 Kd = kd*eye(3,3);
 
-% Compute the Control
-u = -f + rhoddotd_LVLH - Kd*(rhodot_LVLH-rhodotd_LVLH) - Kp*(rho_LVLH -rhod_LVLH);
+% Compute the Nominal Control Thrust
+un = -f + rhoddotd_LVLH - Kd*(rhodot_LVLH-rhodotd_LVLH) - Kp*(rho_LVLH -rhod_LVLH);
+un_hat = un / norm(un);
+un_norm = norm(un);
+
+% Apply Thrust Misalignment
+alphan = atan2(un_hat(2), un_hat(1));
+deltan = asin(un_hat(3));
+beta = misalignment.beta;
+gamma = misalignment.gamma;
+
+ur = un_norm * (sin(gamma) * cos(beta) * sin(alphan) + sin(gamma) * sin(beta) * cos(deltan) * cos(alphan) + cos(gamma) * cos(deltan) * cos(alphan));
+ut = un_norm * (-sin(gamma) * cos(beta) * cos(alphan) + sin(gamma) * sin(beta) * sin(deltan) * sin(alphan) + cos(gamma) * cos(deltan) * sin(alphan));
+uh = un_norm * (-sin(gamma) * sin(beta) * cos(deltan) + cos(gamma) * sin(deltan));
+u = [ur; ut; uh];
 
 % Compute Mass Ratio Derivative
 c = 30/DU*TU;           % effective exhaust velocity = 30 km/s
