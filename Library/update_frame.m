@@ -7,7 +7,7 @@ Rnew = Tnew(1:3, 1:3);
 
 % Calculate New Frame Orientation
 alpha = 1;   % axis length
-F_new = Rnew' * alpha * eye(3);
+F_new = Rnew * alpha * eye(3);
 
 % Update Frame Origin
 set(frame.O, 'XData', r_new(1), 'YData', r_new(2), 'ZData', r_new(3));

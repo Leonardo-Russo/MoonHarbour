@@ -16,7 +16,7 @@ global opt
 opt = struct('name', "Progator Options");
 opt.saveplots = false;
 opt.create_animation = false;
-opt.show_progress = false;
+opt.show_progress = true;
 opt.compute_target = false;
 
 % Define options for ode113()
@@ -260,16 +260,23 @@ t0_backdrift = tspan_back(end);
 % Set the Via Points and Interpolate the Reference Trajectory
 [RHOdPPsLVLH_T, viapoints_T, t_viapoints_T] = ReferenceTrajectory(TCC_T0(1:12), TC0_backdrift, t0_T, t0_backdrift, [0, 1]);
 
+% Set Null Misalignment
+misalignment = define_misalignment_error("null");
+
 % Perform Rendezvous Propagation
 [tspan_ctrl, TCC_ctrl] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, opt.show_progress), ...
     [t0_T, t0_backdrift], TCC_T0, opt.N);
 
+if opt.show_progress
+    close(pbar)
+end
+
 % Store Final Mass Ratio Value
 x7f = TCC_ctrl(end, 13);
 
-% save('Data/attitude.mat');
-
+save('Data/attitude.mat');
+return
 %% Attitude
 
 close all
@@ -277,7 +284,7 @@ clear
 load('Data/attitude.mat');
 clc
 
-debug = 1;
+debug = 0;
 
 % Retrieve Commanded Attitude via [xc, yc, zc] in MCI
 M_ctrl = length(tspan_ctrl);
@@ -291,7 +298,7 @@ MEEt_T = TCC_ctrl(:, 1:6);      % retrieve Target State
 COEt_T = MEE2COE(MEEt_T);
 Xt_MCI_T = COE2rvPCI(COEt_T, muM);
 
-c3_MCI = [0, 0, 1];
+c3_MCI = [0, 0, 1]'; %   SE GLI ASSI SONO ALLINEATI SUCCEDE UN CASINO
 
 for i = 1 : M_ctrl
     
@@ -310,19 +317,25 @@ for i = 1 : M_ctrl
 
     [q0c, qc] = C2q(R_N2C(:, :, i));
     Q_N2C(i, :) = [q0c, qc'];
-    
-    if debug            % show attitude evolution
-        T = eye(4);
-        T(1:3, 1:3) = R_N2C(:, :, i);       % rotation from MCI to Commanded
-        if i == 1
-            figure('Name', 'Attitude Evolution');
-            frame = show_frame(T, '#349beb', 'C');
-            N = show_frame(eye(4), '#000000', 'MCI');
-            axis([-1, 1, -1, 1, -1, 1])
-            grid on
-        else
-            update_frame(frame, T);
-        end
+
+    if (tspan_ctrl(i)-t0)*TU*sec2hrs >= 11.552      % this is the time correspondant to the tangent via point
+        fprintf(['Index %d:\n'...
+                'xc_MCI = [%.4f, %.4f, %.4f]\n'...
+                'yc_MCI = [%.4f, %.4f, %.4f]\n'...
+                'zc_MCI = [%.4f, %.4f, %.4f]\n'...
+                'R_N2C =\n         [%.4f, %.4f, %.4f\n          %.4f, %.4f, %.4f\n          %.4f, %.4f, %.4f]\n'...
+                'q0c = %.4f\n'...
+                'qc = [%.4f, %.4f, %.4f]\n\n'], ...
+                i, ...
+                xc_MCI(i, 1), xc_MCI(i, 2), xc_MCI(i, 3), ...
+                yc_MCI(i, 1), yc_MCI(i, 2), yc_MCI(i, 3), ...
+                zc_MCI(i, 1), zc_MCI(i, 2), zc_MCI(i, 3), ...
+                R_N2C(1, 1, i), R_N2C(1, 2, i), R_N2C(1, 3, i), ...
+                R_N2C(2, 1, i), R_N2C(2, 2, i), R_N2C(2, 3, i), ...
+                R_N2C(3, 1, i), R_N2C(3, 2, i), R_N2C(3, 3, i), ...
+                q0c, ...
+                qc(1), qc(2), qc(3));
+
     end
 
 end
@@ -339,30 +352,127 @@ for i = 1 : M_ctrl
 end
 omega_cPPs = get_statePP(tspan_ctrl, omega_c);
 
-omegadot_c_PPs = [fnder(omega_cPPs(1), 1);
+omegadot_cPPs = [fnder(omega_cPPs(1), 1);
                   fnder(omega_cPPs(2), 1);
                   fnder(omega_cPPs(3), 1)];
 
-if debug
-    figure('name', 'Attitude Quaternions')
-    plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 1), 'LineWidth', 1.5)
-    hold on
-    plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 2), 'LineWidth', 1.5)
-    plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 3), 'LineWidth', 1.5)
-    plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 4), 'LineWidth', 1.5)
-    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-    ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
-    legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
-    grid on
+
+% Set up the Attitude Propagation
+w_0 = [-0.1, 0.05, 0]';                 % rad/s
+omegas_0 = [0.5, 0.5, -0.5, -0.5]';     % rad/s
+
+qc0_0 = Q_N2C(1, 1);
+qc_0 = Q_N2C(1, 2:4)';
+
+% qb0_0 = sqrt(1 - norm(qb_0)^2);
+% qb_0 = [0.1, 0.3, -0.5]';
+qb0_0 = qc0_0;                          % ideal initial conditions -> body aligned with commanded
+qb_0 = qc_0;
+xb0 = [qb0_0; qb_0];                    % body attitude wrt MCI
+
+Y0 = [TCC_T0'; xb0; w_0; omegas_0];     % AOCS extended State
+
+sign_qe0_0 = sign(qc0_0*qb0_0 + qc_0'*qb_0);        % needed for short rotation
+
+if opt.show_progress
+    pbar = waitbar(0, 'Performing AOCS');
+end
+% Perform the Attitude Propagation
+[tspan_AOCS, Y_AOCS] = odeHamHPC(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, omega_cPPs, omegadot_cPPs, R_N2C_PPs, sign_qe0_0, misalignment, opt.show_progress), ...
+    [t0_T, t0_backdrift], Y0, opt.N);
+if opt.show_progress
+    close(pbar)
 end
 
+% Retrieve Attitude Evolution
+xb = Y_AOCS(:, 14:17);
+w = Y_AOCS(:, 18:20);
+omegas = Y_AOCS(:, 21:24);
 
+
+
+% --- Attitude Visualization --- %
+
+figure('name', 'Commanded Attitude Quaternions')
+plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 1), 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 2), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 3), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 4), 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
+grid on
+
+
+figure('name', 'Body Attitude Quaternions')
+plot((tspan_AOCS-t0)*TU*sec2hrs, xb(:, 1), 'LineWidth', 1.5)
+hold on
+plot((tspan_AOCS-t0)*TU*sec2hrs, xb(:, 2), 'LineWidth', 1.5)
+plot((tspan_AOCS-t0)*TU*sec2hrs, xb(:, 3), 'LineWidth', 1.5)
+plot((tspan_AOCS-t0)*TU*sec2hrs, xb(:, 4), 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+legend('q_{b0}', 'q_{b1}', 'q_{b2}', 'q_{b3}', 'fontsize', 10, 'location', 'best')
+grid on
+
+
+figure('name', 'Body Angular Velocity')
+plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 1)/TU, 'LineWidth', 1.5)
+hold on
+plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 2)/TU, 'LineWidth', 1.5)
+plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 3)/TU, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
+grid on
+
+
+figure('name', 'Wheels Angular Velocity')
+plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 1)/TU, 'LineWidth', 1.5)
+hold on
+plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 2)/TU, 'LineWidth', 1.5)
+plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 3)/TU, 'LineWidth', 1.5)
+plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 4)/TU, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
+grid on
+
+
+
+if debug            % show attitude evolution
+    for i = 1 : M_ctrl
+        Tc = eye(4);
+        Tb = eye(4);
+        Tc(1:3, 1:3) = R_N2C(:, :, i);       % rotation from MCI to Commanded
+        Tb(1:3, 1:3) = q2C(xb(i, 1), xb(i, 2:4)');       % rotation from MCI to Commanded
+        if i == 1
+            figure('Name', 'Attitude Evolution');
+            commanded = show_frame(Tc, '#349beb', 'C');
+            body = show_frame(Tb, '#fc9803', 'B');
+            N = show_frame(eye(4), '#000000', 'MCI');
+            axis([-1, 1, -1, 1, -1, 1])
+            grid on
+        else
+            update_frame(commanded, Tc);
+            update_frame(body, Tb);
+        end
+    end
+end
+
+return
 %% Final Natural Drift
 
 % Define Forward Drift Propagation Parameters
 tspan_drift = linspace(tspan_ctrl(end), tf + abs(tf-tspan_ctrl(end)), opt.N);                   % define the Forward Drift tspan
 TC0_drift = TCC_ctrl(end, 1:12);                                                                % define Initial Conditions
 optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_fwd(t, Y));     % define options
+
+if opt.show_progress
+    pbar = waitbar(0, 'Performing the Direct Approach Rendezvous');
+end
 
 % Perform the Final Natural Drift of the Chaser
 [tspan_drift, TC_drift, t_fwdstop, ~, ~] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...

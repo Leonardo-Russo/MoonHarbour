@@ -24,7 +24,7 @@ r = X(1:3);
 R = T(1:3, 1:3);
 
 alpha = 1;   % axis length
-F = R' * alpha*eye(3);
+F = R * alpha*eye(3);
 
 origin = plot3(r(1), r(2), r(3), 'Color', color, 'marker', '*', 'HandleVisibility','off');
 hold on
