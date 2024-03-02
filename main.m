@@ -16,7 +16,7 @@ global opt
 opt = struct('name', "Progator Options");
 opt.saveplots = false;
 opt.create_animation = false;
-opt.show_progress = true;
+opt.show_progress = false;
 opt.compute_target = false;
 
 % Define options for ode113()
@@ -203,7 +203,7 @@ stopSaturationTime = tspan_ctrl_DA(end);
 
 % Perform Natural Feedback Control
 [tspan_temp, TCC_temp] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, kp, DU, TU, misalignment, opt.show_progress), ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, kp, DU, TU, misalignment, opt.show_progress, 0), ...
     [tspan_ctrl_DA(end), t0_backdrift_DA], TCC_ctrl_DA(end, :), opt.N, @is_terminal_distance);
 
 % Retrieve Final State Values
@@ -224,7 +224,7 @@ fprintf('Reached 50m Distance @ %.2f hrs.\n', (t0_T-t0)*TU/3600)
 % testPPs(RHOdPPsLVLH_DA(1:3), tspan_ctrl_DA);
 
 
-%% Terminal Trajectory: Chaser State Backwards Propagation from Desired Final Conditions
+%% Terminal Trajectory: Chaser Backwards Propagation from Desired Final Conditions
 
 % Define Natural Drift Propagation Settings
 optODE_back = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_back(t, Y));
@@ -254,19 +254,122 @@ t0_backdrift = tspan_back(end);
 % figure('name', 'Backdrift Trajectory')
 % DrawTrajLVLH3D(TC_backdrift(:, 7:9)*DU);
 
-
+save('Debugging.mat');
+return
 %% Terminal Trajectory: Perform Chaser Rendezvous Manoeuvre and Natural Drift
+close all
+clear
+load('Debugging.mat');
+clc
 
-% Set the Via Points and Interpolate the Reference Trajectory
-[RHOdPPsLVLH_T, viapoints_T, t_viapoints_T] = ReferenceTrajectory(TCC_T0(1:12), TC0_backdrift, t0_T, t0_backdrift, [0, 1]);
+% Initialize Regenerative Quantities
+TCC_rt0 = TCC_T0';
+t0_rt = t0_T;
+tspan_ctrl = [];
+TCC_ctrl = [];
+RHOdPPsLVLH_T = [];
 
 % Set Null Misalignment
 misalignment = define_misalignment_error("null");
 
-% Perform Rendezvous Propagation
-[tspan_ctrl, TCC_ctrl] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, opt.show_progress), ...
-    [t0_T, t0_backdrift], TCC_T0, opt.N);
+% Define Propagation Steps
+dt_gen = 5*60/TU;               % renegerative propagation step
+dt_min = 1*60/TU;               % minimum propagation step
+max_steps = 100;                % maximum steps of the regenerative trajectory
+
+% Define Propagation Settings
+optODE_rt = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
+
+% Define Global signvect Variable
+global signvect
+
+for step = 1 : max_steps
+
+    % Set the Via Points and Interpolate the Reference Terminal Trajectory
+    [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [0, 1]);
+
+    % Set Final Propagation Time and Define timespan
+    if length(t_viapoints_rt) >= 3
+        if t0_rt + dt_min < t_viapoints_rt(2)
+            tf_rt = t_viapoints_rt(2);
+        else
+            tf_rt = t0_backdrift;
+        end
+    else
+        tf_rt = t0_backdrift;
+    end
+    tspan_rt = [t0_rt : 1/TU : tf_rt]';
+
+    % Propagate to Final Propagation Time
+    [~, TCC_rt] = ode113(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, misalignment, opt.show_progress, 1), ...
+        tspan_rt, TCC_rt0, optODE_rt);
+
+    % Retrieve Commanded Attitude via [xc, yc, zc] in MCI
+    M_rt = length(tspan_rt);
+    xc_MCI = zeros(M_rt, 3);
+    yc_MCI = zeros(M_rt, 3);
+    zc_MCI = zeros(M_rt, 3);
+    R_N2C = zeros(3, 3, M_rt);
+    Q_N2C = zeros(M_rt, 4);
+    
+    MEEt_rt = TCC_rt(:, 1:6);       % retrieve Target State
+    COEt_rt = MEE2COE(MEEt_rt);
+    Xt_MCI_rt = COE2rvPCI(COEt_rt, muM);
+    
+    c3_MCI = [0, 0, 1]'; %   USE CHIARA's APPROACH
+    
+    for i = 1 : M_rt
+    
+        % Retrieve Thrust Acceleration in LVLH
+        [~, ~, ~, ~, u, ~, ~, ~, ~] = NaturalFeedbackControl(tspan_rt(i), TCC_rt(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, misalignment, 0, 0);
+        xc_LVLH = u / norm(u);      % normalize to find xc versor in LVLH
+    
+        % Rotate from LVLH to MCI
+        [R_LVLH2MCI, ~] = get_rotLVLH2MCI(Xt_MCI_rt(i, :)', tspan_rt(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
+        xc_MCI(i, :) = R_LVLH2MCI*xc_LVLH;
+        yc_MCI(i, :) = cross(c3_MCI, xc_MCI(i, :)')/norm(cross(c3_MCI, xc_MCI(i, :)'));
+        zc_MCI(i, :) = cross(xc_MCI(i, :)', yc_MCI(i, :)');
+    
+        R_N2C(:, :, i) = [xc_MCI(i, :)', yc_MCI(i, :)', zc_MCI(i, :)']';
+    
+        if step == 1 && i == 1
+            [q0c, qc] = C2q(R_N2C(:, :, i));
+            signvect = [sign(q0c), sign(qc(1)), sign(qc(2)), sign(qc(3))]';
+        else
+            [q0c, qc] = matrixToQuat(R_N2C(:, :, i));
+        end
+        Q_N2C(i, :) = [q0c, qc'];
+    
+    end
+
+    % Interpolate R_N2C and compute its derivative
+    R_N2C_PPs_rt = get_rotPPs(tspan_rt, R_N2C);
+    Rdot_N2C_PPs_rt = fnder_rots(R_N2C_PPs_rt);
+    
+    % Compute angular velocity of Commanded Attitude and its derivative
+    omega_c_rt = zeros(M_rt, 3);
+    for i = 1 : M_rt
+        Rdot_N2C_rt = rotppsval(Rdot_N2C_PPs_rt, tspan_rt(i));
+        omega_c_rt(i, :) = unskew(-Rdot_N2C_rt * R_N2C(:, :, i)');
+    end
+    omega_cPPs_rt = get_statePP(tspan_rt, omega_c_rt);
+    
+    omegadot_cPPs_rt = [fnder(omega_cPPs_rt(1), 1);
+                      fnder(omega_cPPs_rt(2), 1);
+                      fnder(omega_cPPs_rt(3), 1)];
+    
+    % Propagate Trajectory and Attitude
+
+
+    % Stack the Output
+    tspan_ctrl = [tspan_ctrl; tspan_rt];
+    TCC_ctrl = [TCC_ctrl; TCC_rt];
+    RHOdPPsLVLH_T = [RHOdPPsLVLH_T, RHOdPPsLVLH_rt];
+    
+
+end
 
 if opt.show_progress
     close(pbar)
@@ -301,10 +404,10 @@ Xt_MCI_T = COE2rvPCI(COEt_T, muM);
 c3_MCI = [0, 0, 1]'; %   SE GLI ASSI SONO ALLINEATI SUCCEDE UN CASINO
 
 for i = 1 : M_ctrl
-    
+
     % Retrieve Thrust Acceleration in LVLH
     [~, ~, ~, ~, u, ~, ~, ~, ~] = NaturalFeedbackControl(tspan_ctrl(i), TCC_ctrl(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0);
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0, 0);
     xc_LVLH = u / norm(u);      % normalize to find xc versor in LVLH
 
     % Rotate from LVLH to MCI
@@ -566,7 +669,7 @@ for i = 1 : size(RHO_LVLH, 1)
         s = i - M_ctrl_DA;              % auxiliary index
         [dY, ~, ~, ~, u(i, :), ~, ~, ~, f_norms(i)] = ...
             NaturalFeedbackControl(tspan_ctrl(s), TCC_ctrl(s, :), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0, 0);
         RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_T, tspan(i));
         kp_store(i) = kp;
         u_norms(i) = norm(u(i, :));
