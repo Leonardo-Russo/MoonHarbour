@@ -1,6 +1,6 @@
 function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, omega_cPPs, omegadot_cPPs, R_N2C_PPs, sign_qe0_0, misalignment, clock)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, clock)
 
 % -------------------- Orbital Control -------------------- %
 
@@ -12,8 +12,8 @@ global pbar
 dY = zeros(24, 1); 
     
 % Retrieve Data from Input
-MEEt = Y(1:6)';
-RHO_LVLH = Y(7:12)';
+MEEt = Y(1:6);
+RHO_LVLH = Y(7:12);
 x7 = Y(13);
 
 % Retrieve RHO State Variables
@@ -101,41 +101,21 @@ un = -f + rhoddotd_LVLH - Kd*(rhodot_LVLH-rhodotd_LVLH) - Kp*(rho_LVLH -rhod_LVL
 un_hat = un / norm(un);
 un_norm = norm(un);
 
-% Apply Thrust Misalignment
-alphan = atan2(un_hat(2), un_hat(1));
-deltan = asin(un_hat(3));
-beta = misalignment.beta;
-gamma = misalignment.gamma;
-
-ur = un_norm * (sin(gamma) * cos(beta) * sin(alphan) + sin(gamma) * sin(beta) * cos(deltan) * cos(alphan) + cos(gamma) * cos(deltan) * cos(alphan));
-ut = un_norm * (-sin(gamma) * cos(beta) * cos(alphan) + sin(gamma) * sin(beta) * sin(deltan) * sin(alphan) + cos(gamma) * cos(deltan) * sin(alphan));
-uh = un_norm * (-sin(gamma) * sin(beta) * cos(deltan) + cos(gamma) * sin(deltan));
-u = [ur; ut; uh];
-
 % Compute Mass Ratio Derivative
 c = 30/DU*TU;           % effective exhaust velocity = 30 km/s
-x7_dot = - x7*norm(u)/c;
-
-
-
-% Assign State Derivatives
-dY(1:6) = G*apt_LVLHt;
-dY(6) = dY(6) + sqrt(muM/MEEt(1)^3)*eta^2;
-dY(7:9) = rhodot_LVLH;
-dY(10:12) = f + u;
-dY(13) = x7_dot;
+x7_dot = - x7*norm(un_norm)/c;
 
 
 
 % -------------------- Attitude Control -------------------- %
 
 % Retrieve Attitude State Variables
-xb = Y(14:17)';
-w = Y(18:20)';
-omegas = Y(21:24)';
+Xb = Y(14:17);
+w = Y(18:20);
+omegas = Y(21:24);
 
-qb0 = xb(1);
-qb = xb(2:4);
+qb0 = Xb(1);
+qb = Xb(2:4);
 
 % Define Chaser Parameters
 Jc = [900, 50, -100;...
@@ -157,8 +137,9 @@ wc_dot = ppsval(omegadot_cPPs, t);
 wd = w - wc;                            % compute desired attitude
 
 % Compute Error Quaternions
-R_N2C = rotppsval(R_N2C_PPs, t);
-[qc0, qc] = C2q(R_N2C);
+Q_N2C = ppsval(Q_N2C_PPs, t);
+qc0 = Q_N2C(1);
+qc = Q_N2C(2:4);
 qe0 = qc0*qb0 + qc' * qb;
 qe = -qc*qb0 + qc0*qb - skew(qc)*qb;
 
@@ -172,7 +153,7 @@ as = [a1, a2, a3, a4];
 Is = 1;     % kg m^2
 It = 0.5;   % kg m^2
 
-Ja = buildJa(Is, as);       % would be the A matrix for reaction wheels
+A = buildA(Is, as);         % this is the A matrix for reaction wheels
 
 
 % Define Mc
@@ -182,13 +163,27 @@ Mc = 0;         % no external torques applied on the chaser
 Tc = skew(w)*Jc*w - Mc + Jc*wc_dot - Jc*invA*B*wd - sign_qe0_0*Jc*invA*qe;
 
 
-% Assign State Derivatives
-omegas_dot = -Ja' * inv(Ja * Ja') * Tc;
-w_dot = inv(Jc) * (Mc - skew(w)*Jc*w - skew(w)*Ja*omegas - Ja*omegas_dot);
+% Compute Attitude State Derivatives
+omegas_dot = -A' * inv(A * A') * Tc;
+w_dot = inv(Jc) * (Mc - skew(w)*Jc*w - skew(w)*A*omegas - A*omegas_dot);
 qb0_dot = -0.5 * w' * qb;
 qb_dot = -0.5 * skew(w) * qb + 0.5 * qb0 * w;
 xb_dot = [qb0_dot; qb_dot];
 
+
+% Retrieve Actual Thrust Direction
+R_N2B = q2C(qb0, qb)';
+xb_MCI = R_N2B(:, 1);
+xb_LVLH = R_MCI2LVLHt * xb_MCI;
+u = un_norm * xb_LVLH;
+
+
+% ---------- Assign State Derivatives ---------- %
+dY(1:6) = G*apt_LVLHt;
+dY(6) = dY(6) + sqrt(muM/MEEt(1)^3)*eta^2;
+dY(7:9) = rhodot_LVLH;
+dY(10:12) = f + u;
+dY(13) = x7_dot;
 dY(14:17) = xb_dot;
 dY(18:20) = w_dot;
 dY(21:24) = omegas_dot;

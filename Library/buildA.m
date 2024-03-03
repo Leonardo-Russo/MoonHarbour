@@ -1,13 +1,13 @@
-function Ja = buildJa(Is, a)
+function A = buildA(Is, a)
 % Description: this function creates the A matrix used in the evaluation of
 % omegas_dot from the known value of commanded Torque.
 
-Ja = [];
+A = [];
 
 Nw = size(a, 2);
 
 for i = 1 : Nw
-    Ja = [Ja, Is*a(:, i)];
+    A = [A, Is*a(:, i)];
 end
 
 end

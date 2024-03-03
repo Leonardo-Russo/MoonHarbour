@@ -17,9 +17,6 @@ function [RHOrefPPs, viapoints, tspan_viapoints] = ReferenceTrajectory(TC0, TCf,
 % t0 and tf must be nondimensional.
 % TU must be expressed in seconds.
 
-debug = 0;
-
-
 global DU
 
 % Initial conditions
@@ -107,31 +104,31 @@ if collision
     rho_r1 = rho_1(1);
     rho_t1 = rho_1(2);
     rho_h1 = rho_1(3);
-    tspan_viapoints = [t0, t1, tf]';
     
     rho_r = [rho_r0, rho_r1, rho_rf]';
     rho_t = [rho_t0, rho_t1, rho_tf]';
     rho_h = [rho_h0, rho_h1, rho_hf]';
     
     % Compute Reference Trajectory
-    RHOrefPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
-    viapoints = [rho_r, rho_t, rho_h];
+    TangentPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
+
+    if ~isempty(TangentPPs)
+        RHOrefPPs = TangentPPs;
+        viapoints = [rho_r, rho_t, rho_h];
+        tspan_viapoints = [t0, t1, tf]';
+    end
 
 end
 
-% Show the Reference Trajectory
-if debug
-    testPPs(RHOrefPPs, tspan_check);
-end
 
 % Compute the Reference Trajectory Velocity and Acceleration
 rhodot_rPPs = fnder(RHOrefPPs(1), 1);
 rhodot_tPPs = fnder(RHOrefPPs(2), 1);
 rhodot_hPPs = fnder(RHOrefPPs(3), 1);
-
 rhoddot_rPPs = fnder(rhodot_rPPs, 1);
 rhoddot_tPPs = fnder(rhodot_tPPs, 1);
 rhoddot_hPPs = fnder(rhodot_hPPs, 1);
+
 RHOrefPPs = [RHOrefPPs; rhodot_rPPs; rhodot_tPPs; rhodot_hPPs; rhoddot_rPPs; rhoddot_tPPs; rhoddot_hPPs];
 
 
