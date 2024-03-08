@@ -267,12 +267,14 @@ tspan_ctrl = [];
 Y_ctrl = [];
 RHOdPPsLVLH_T = [];
 indices_ctrl = [1];
+Xb_stack = [];
+Q_N2C_AOCS_stack = [];
 
 % Set Null Misalignment
 misalignment = define_misalignment_error("null");
 
 % Define Propagation Steps
-dt_gen = 10*60/TU;               % renegerative propagation interval
+dt_gen = 5*60/TU;               % renegerative propagation interval
 dt_min = 1*60/TU;               % minimum propagation interval
 dt_prop = 1/TU;                 % propagation time step
 max_branches = 100;             % maximum n° of branches of the regenerative trajectory
@@ -479,60 +481,64 @@ for branch = 1 : max_branches
     Y_ctrl = [Y_ctrl; Y_AOCS];
     RHOdPPsLVLH_T = [RHOdPPsLVLH_T, RHOdPPsLVLH_rt];
     indices_ctrl = [indices_ctrl; M_AOCS];
+    Xb_stack = [Xb_stack; Xb];
+    Q_N2C_AOCS_stack = [Q_N2C_AOCS_stack; Q_N2C_AOCS];
 
     % Attitude Visualization
     if debug
 
         close all
 
-        figure('name', 'Step Trajectory')
+        figure('name', strcat("Branch ", string(branch), " - Trajectory"))
         for k = 1 : length(indices_ctrl) - 1
-            testPPs(RHOdPPsLVLH_T(1:3, k), tspan_ctrl(indices_ctrl(k):indices_ctrl(k+1)));
+            bot_index = sum(indices_ctrl(1:k));
+            top_index = sum(indices_ctrl(1:k+1))-1;
+            testPPs(RHOdPPsLVLH_T(1:3, k), tspan_ctrl(bot_index:top_index));
         end
         DrawTrajLVLH3D(Y_ctrl(:, 7:9)*DU);
 
-        figure('name', 'Body and Commanded Attitude')
+        figure('name', strcat("Branch ", string(branch), " - Body and Commanded Attitude"))
         subplot(1, 2, 1)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, Xb(:, 1), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 1), 'LineWidth', 1.5)
         hold on
-        plot((tspan_AOCS-t0)*TU*sec2hrs, Xb(:, 2), 'LineWidth', 1.5)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, Xb(:, 3), 'LineWidth', 1.5)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, Xb(:, 4), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 2), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 3), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 4), 'LineWidth', 1.5)
         xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
         legend('q_{b0}', 'q_{b1}', 'q_{b2}', 'q_{b3}', 'fontsize', 10, 'location', 'best')
         grid on
         subplot(1, 2, 2)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, Q_N2C_AOCS(:, 1), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C_AOCS_stack(:, 1), 'LineWidth', 1.5)
         hold on
-        plot((tspan_AOCS-t0)*TU*sec2hrs, Q_N2C_AOCS(:, 2), 'LineWidth', 1.5)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, Q_N2C_AOCS(:, 3), 'LineWidth', 1.5)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, Q_N2C_AOCS(:, 4), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C_AOCS_stack(:, 2), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C_AOCS_stack(:, 3), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C_AOCS_stack(:, 4), 'LineWidth', 1.5)
         xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
         legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
         grid on        
     
-        figure('name', 'Body and Wheels Angular Velocity')
-        subplot(1, 2, 1)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 1)/TU, 'LineWidth', 1.5)
-        hold on
-        plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 2)/TU, 'LineWidth', 1.5)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 3)/TU, 'LineWidth', 1.5)
-        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
-        legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
-        grid on
-        subplot(1, 2, 2)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 1)/TU, 'LineWidth', 1.5)
-        hold on
-        plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 2)/TU, 'LineWidth', 1.5)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 3)/TU, 'LineWidth', 1.5)
-        plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 4)/TU, 'LineWidth', 1.5)
-        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
-        legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
-        grid on
+        % figure('name', strcat("Branch ", string(branch), " - Body and Wheels Angular Velocity"))
+        % subplot(1, 2, 1)
+        % plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 1)/TU, 'LineWidth', 1.5)
+        % hold on
+        % plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 2)/TU, 'LineWidth', 1.5)
+        % plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 3)/TU, 'LineWidth', 1.5)
+        % xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        % ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+        % legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
+        % grid on
+        % subplot(1, 2, 2)
+        % plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 1)/TU, 'LineWidth', 1.5)
+        % hold on
+        % plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 2)/TU, 'LineWidth', 1.5)
+        % plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 3)/TU, 'LineWidth', 1.5)
+        % plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 4)/TU, 'LineWidth', 1.5)
+        % xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        % ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+        % legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
+        % grid on
 
     end  
 
@@ -577,193 +583,8 @@ end
 x7f = TCC_ctrl(end, 13);
 
 save('Data/attitude.mat');
+
 return
-% %% Attitude
-% 
-% close all
-% clear
-% load('Data/attitude.mat');
-% clc
-% 
-% debug = 0;
-% 
-% % Retrieve Commanded Attitude via [xc, yc, zc] in MCI
-% M_ctrl = length(tspan_ctrl);
-% xc_MCI = zeros(M_ctrl, 3);
-% yc_MCI = zeros(M_ctrl, 3);
-% zc_MCI = zeros(M_ctrl, 3);
-% R_N2C = zeros(3, 3, M_ctrl);
-% Q_N2C = zeros(M_ctrl, 4);
-% 
-% MEEt_T = TCC_ctrl(:, 1:6);      % retrieve Target State
-% COEt_T = MEE2COE(MEEt_T);
-% Xt_MCI_T = COE2rvPCI(COEt_T, muM);
-% 
-% c3_MCI = [0, 0, 1]'; %   SE GLI ASSI SONO ALLINEATI SUCCEDE UN CASINO
-% 
-% for i = 1 : M_ctrl
-% 
-%     % Retrieve Thrust Acceleration in LVLH
-%     [~, ~, ~, ~, u, ~, ~, ~, ~] = NaturalFeedbackControl(tspan_ctrl(i), TCC_ctrl(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
-%         muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0, 0);
-%     xc_LVLH = u / norm(u);      % normalize to find xc versor in LVLH
-% 
-%     % Rotate from LVLH to MCI
-%     [R_LVLH2MCI, ~] = get_rotLVLH2MCI(Xt_MCI_T(i, :)', tspan_ctrl(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
-%     xc_MCI(i, :) = R_LVLH2MCI*xc_LVLH;
-%     yc_MCI(i, :) = cross(c3_MCI, xc_MCI(i, :)')/norm(cross(c3_MCI, xc_MCI(i, :)'));
-%     zc_MCI(i, :) = cross(xc_MCI(i, :)', yc_MCI(i, :)');
-% 
-%     R_N2C(:, :, i) = [xc_MCI(i, :)', yc_MCI(i, :)', zc_MCI(i, :)']';
-% 
-%     [q0c, qc] = C2q(R_N2C(:, :, i));
-%     Q_N2C(i, :) = [q0c, qc'];
-% 
-%     if (tspan_ctrl(i)-t0)*TU*sec2hrs >= 11.552      % this is the time correspondant to the tangent via point
-%         fprintf(['Index %d:\n'...
-%                 'xc_MCI = [%.4f, %.4f, %.4f]\n'...
-%                 'yc_MCI = [%.4f, %.4f, %.4f]\n'...
-%                 'zc_MCI = [%.4f, %.4f, %.4f]\n'...
-%                 'R_N2C =\n         [%.4f, %.4f, %.4f\n          %.4f, %.4f, %.4f\n          %.4f, %.4f, %.4f]\n'...
-%                 'q0c = %.4f\n'...
-%                 'qc = [%.4f, %.4f, %.4f]\n\n'], ...
-%                 i, ...
-%                 xc_MCI(i, 1), xc_MCI(i, 2), xc_MCI(i, 3), ...
-%                 yc_MCI(i, 1), yc_MCI(i, 2), yc_MCI(i, 3), ...
-%                 zc_MCI(i, 1), zc_MCI(i, 2), zc_MCI(i, 3), ...
-%                 R_N2C(1, 1, i), R_N2C(1, 2, i), R_N2C(1, 3, i), ...
-%                 R_N2C(2, 1, i), R_N2C(2, 2, i), R_N2C(2, 3, i), ...
-%                 R_N2C(3, 1, i), R_N2C(3, 2, i), R_N2C(3, 3, i), ...
-%                 q0c, ...
-%                 qc(1), qc(2), qc(3));
-% 
-%     end
-% 
-% end
-% 
-% % Interpolate R_N2C and compute its derivative
-% R_N2C_PPs = get_rotPPs(tspan_ctrl, R_N2C);
-% Rdot_N2C_PPs = fnder_rots(R_N2C_PPs);
-% 
-% % Compute angular velocity of Commanded Attitude and its derivative
-% omega_c = zeros(M_ctrl, 3);
-% for i = 1 : M_ctrl
-%     Rdot_N2C = rotppsval(Rdot_N2C_PPs, tspan_ctrl(i));
-%     omega_c(i, :) = unskew(-Rdot_N2C * R_N2C(:, :, i)');
-% end
-% omega_cPPs = get_statePP(tspan_ctrl, omega_c);
-% 
-% omegadot_cPPs = [fnder(omega_cPPs(1), 1);
-%                   fnder(omega_cPPs(2), 1);
-%                   fnder(omega_cPPs(3), 1)];
-% 
-% 
-% % Set up the Attitude Propagation
-% w_0 = [-0.1, 0.05, 0]';                 % rad/s
-% omegas_0 = [0.5, 0.5, -0.5, -0.5]';     % rad/s
-% 
-% qc0_0 = Q_N2C(1, 1);
-% qc_0 = Q_N2C(1, 2:4)';
-% 
-% % qb0_0 = sqrt(1 - norm(qb_0)^2);
-% % qb_0 = [0.1, 0.3, -0.5]';
-% qb0_0 = qc0_0;                          % ideal initial conditions -> body aligned with commanded
-% qb_0 = qc_0;
-% xb0 = [qb0_0; qb_0];                    % body attitude wrt MCI
-% 
-% Y0 = [TCC_T0'; xb0; w_0; omegas_0];     % AOCS extended State
-% 
-% sign_qe0_0 = sign(qc0_0*qb0_0 + qc_0'*qb_0);        % needed for short rotation
-% 
-% if opt.show_progress
-%     pbar = waitbar(0, 'Performing AOCS');
-% end
-% % Perform the Attitude Propagation
-% [tspan_AOCS, Y_AOCS] = odeHamHPC(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
-%     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, omega_cPPs, omegadot_cPPs, R_N2C_PPs, sign_qe0_0, misalignment, opt.show_progress), ...
-%     [t0_T, t0_backdrift], Y0, opt.N);
-% if opt.show_progress
-%     close(pbar)
-% end
-% 
-% % Retrieve Attitude Evolution
-% xb = Y_AOCS(:, 14:17);
-% w = Y_AOCS(:, 18:20);
-% omegas = Y_AOCS(:, 21:24);
-% 
-% 
-% 
-% % --- Attitude Visualization --- %
-% 
-% figure('name', 'Commanded Attitude Quaternions')
-% plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 1), 'LineWidth', 1.5)
-% hold on
-% plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 2), 'LineWidth', 1.5)
-% plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 3), 'LineWidth', 1.5)
-% plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C(:, 4), 'LineWidth', 1.5)
-% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-% ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
-% legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
-% grid on
-% 
-% 
-% figure('name', 'Body Attitude Quaternions')
-% plot((tspan_AOCS-t0)*TU*sec2hrs, xb(:, 1), 'LineWidth', 1.5)
-% hold on
-% plot((tspan_AOCS-t0)*TU*sec2hrs, xb(:, 2), 'LineWidth', 1.5)
-% plot((tspan_AOCS-t0)*TU*sec2hrs, xb(:, 3), 'LineWidth', 1.5)
-% plot((tspan_AOCS-t0)*TU*sec2hrs, xb(:, 4), 'LineWidth', 1.5)
-% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-% ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
-% legend('q_{b0}', 'q_{b1}', 'q_{b2}', 'q_{b3}', 'fontsize', 10, 'location', 'best')
-% grid on
-% 
-% 
-% figure('name', 'Body Angular Velocity')
-% plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 1)/TU, 'LineWidth', 1.5)
-% hold on
-% plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 2)/TU, 'LineWidth', 1.5)
-% plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 3)/TU, 'LineWidth', 1.5)
-% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-% ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
-% legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
-% grid on
-% 
-% 
-% figure('name', 'Wheels Angular Velocity')
-% plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 1)/TU, 'LineWidth', 1.5)
-% hold on
-% plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 2)/TU, 'LineWidth', 1.5)
-% plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 3)/TU, 'LineWidth', 1.5)
-% plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 4)/TU, 'LineWidth', 1.5)
-% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-% ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
-% legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
-% grid on
-% 
-% 
-% 
-% if debug            % show attitude evolution
-%     for i = 1 : M_ctrl
-%         Tc = eye(4);
-%         Tb = eye(4);
-%         Tc(1:3, 1:3) = R_N2C(:, :, i);       % rotation from MCI to Commanded
-%         Tb(1:3, 1:3) = q2C(xb(i, 1), xb(i, 2:4)');       % rotation from MCI to Commanded
-%         if i == 1
-%             figure('Name', 'Attitude Evolution');
-%             commanded = show_frame(Tc, '#349beb', 'C');
-%             body = show_frame(Tb, '#fc9803', 'B');
-%             N = show_frame(eye(4), '#000000', 'MCI');
-%             axis([-1, 1, -1, 1, -1, 1])
-%             grid on
-%         else
-%             update_frame(commanded, Tc);
-%             update_frame(body, Tb);
-%         end
-%     end
-% end
-% 
-% return
 %% Final Natural Drift
 
 % Define Forward Drift Propagation Parameters
