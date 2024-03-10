@@ -1,6 +1,6 @@
 function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f, f_norm, kp_out, k_type] = HybridPredictiveControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, ...
-    MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, DU, TU, checkTimes, Delta_t, N_inner_integration, filepath, misalignment)
+    MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, DU, TU, checkTimes, Delta_t, N_inner_integration, misalignment)
 % Description: ...
 
 
@@ -174,7 +174,6 @@ if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0
     elseif crosses >= 2     % this means we have at least a cross from below, i. e. the threshold has been overcome by the feedback reaction
         stopPrediction = 1;
         stopSaturationTime = t;
-        save(filepath, "stopSaturationTime")
     end
 
     if isempty(indexes)

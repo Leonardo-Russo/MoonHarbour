@@ -4,6 +4,8 @@ function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
 
 % -------------------- Orbital Control -------------------- %
 
+critical_time = 11.290185810082459;
+
 % ----- Natural Relative Motion ----- %
 
 global pbar
@@ -124,7 +126,8 @@ Jc = [900, 50, -100;...
 
 % Gain Parameters
 omega_n = 0.03;     % rad/s
-omega_n = 10;
+% omega_n = 10;
+% omega_n = 100;
 xi = 1;
 c1 = 2 * omega_n^2;
 c2 = 2*xi*omega_n/c1;
@@ -172,8 +175,8 @@ xb_dot = [qb0_dot; qb_dot];
 
 
 % Retrieve Actual Thrust Direction
-R_N2B = q2C(qb0, qb)';
-xb_MCI = R_N2B(:, 1);
+R_B2N = q2C(qb0, qb)';
+xb_MCI = R_B2N(:, 1);
 xb_LVLH = R_MCI2LVLHt * xb_MCI;
 u = un_norm * xb_LVLH;
 

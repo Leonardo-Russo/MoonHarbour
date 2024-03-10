@@ -11,29 +11,21 @@ addpath('Data/Materials/')
 addpath('Data/temp/')
 
 
-% Introduce Options Structure
+% Define Options
 global opt
 opt = struct('name', "Progator Options");
 opt.saveplots = false;
 opt.create_animation = false;
 opt.show_progress = false;
-opt.compute_target = false;
-
-% Define options for ode113()
-opt.RelTolODE = 1e-7;
+opt.compute_target = true;
+opt.N = 1000;                   % n° of points for the Interpolation
+opt.RelTolODE = 1e-7;           % options for ode()
 opt.AbsTolODE = 1e-6;
+
 OptionsODE = odeset('RelTol', opt.RelTolODE, 'AbsTol', opt.AbsTolODE);
 
-% Parallel Computing Utils
-fileNum = 1;
-parallel_path = ['Data/temp/VelocitySim' num2str(fileNum) '.mat'];
-
-% Stop Saturation Time Paths
-stop_sat1 = 'Data/temp/stop_sat1.mat';
-stop_sat2 = 'Data/temp/stop_sat2.mat';
-
 % Define Thrust Misalignment
-misalignment = define_misalignment_error("const");
+misalignment = define_misalignment_error("null");
 
 tic
 %% Hyperparameters and Settings
@@ -63,22 +55,18 @@ total_time = datef - date0;
 g0 = 9.80665;
 u_limit = 5e-5*g0;
 
-% Define the Chaser Initial Conditions ~ norm(rhodot_LVLH) = 1 m/s
-% This was the condition applied for the finetuning of the gain parameters
+% Define the Chaser Initial Conditions ~ norm(rhodot_LVLH) = 1 m/s -> condition applied for the finetuning of the gain parameters
 RHO0_LVLH = [1.5, 0, 0, -1e-6, -1e-3, -1e-3]';                  % km, km/s
 RHO0_LVLH = [RHO0_LVLH(1:3)/DU; RHO0_LVLH(4:6)/DU*TU];      % adim
 
 % Define Desired Conditions for Docking
-RHOf_LVLH = [-5e-3, 0, 0, 1e-5, 0, 0]';                     % km, km/s
+RHOf_LVLH = [5e-3, 0, 0, -1e-5, 0, 0]';                     % km, km/s
 RHOf_LVLH = [RHOf_LVLH(1:3)/DU; RHOf_LVLH(4:6)/DU*TU];      % adim
 
 % Define Direct Approach Conditions
 rhof_LVLH_DA = 5e-3/DU * RHO0_LVLH(1:3)/norm(RHO0_LVLH(1:3));
 rhodotf_LVLH_DA = -1e-5/DU*TU * RHO0_LVLH(1:3)/norm(RHO0_LVLH(1:3));
 RHOf_LVLH_DA = [rhof_LVLH_DA; rhodotf_LVLH_DA];
-
-% Define the n° of points for the Interpolation
-opt.N = 1000;
 
 %% Propagate Reference Target Trajectory
 
@@ -123,10 +111,6 @@ else
 
 end
 
-% % Open log file
-% log = fopen('Output/log.txt', 'w+');
-% fclose(log);
-
 %% Direct Approach: Chaser Backwards Propagation from Final Conditions
 
 % Define Natural Drift Propagation Settings
@@ -145,7 +129,7 @@ TCf_backdrift_DA = [MEEft; RHOf_LVLH_DA];
 
 % Check Successful Back Drift
 if isempty(t_bwdstop_DA)
-    warning('Could not complete Backwards Natural Drift with Direct Approach Conditions.');
+    warning('Could not complete Backwards Natural Drift from Direct Approach Conditions.');
 end
 
 % Retrieve the States and epoch for Final Drift
@@ -185,7 +169,7 @@ if opt.show_progress
     pbar = waitbar(0, 'Performing the Direct Approach Rendezvous');
 end
 [tspan_ctrl_DA, TCC_ctrl_DA] = odeHamHPC(@(t, TCC) HybridPredictiveControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, stop_sat1, misalignment),...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment),...
     [t0, t0_backdrift_DA], TCC0, opt.N, @is_terminal_distance, event_odefun);
 
 % Check if Terminal Conditions are reached
@@ -199,7 +183,7 @@ stopSaturationTime = tspan_ctrl_DA(end);
 
 % Retrive Final Kp
 [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, kp, ~] = HybridPredictiveControl(tspan_ctrl_DA(end), TCC_ctrl_DA(end, :), EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, stop_sat1, misalignment);
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment);
 
 % Perform Natural Feedback Control
 [tspan_temp, TCC_temp] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
@@ -255,7 +239,7 @@ t0_backdrift = tspan_back(end);
 % DrawTrajLVLH3D(TC_backdrift(:, 7:9)*DU);
 
 save('Debugging.mat');
-return
+
 %% Terminal Trajectory: Chaser Complete Docking Manoeuvre
 close all
 clear
@@ -269,19 +253,21 @@ RHOdPPsLVLH_T = [];
 indices_ctrl = [1];
 Xb_stack = [];
 Q_N2C_AOCS_stack = [];
+w_stack = [];
+omegas_stack = [];
 
 % Set Null Misalignment
 misalignment = define_misalignment_error("null");
 
 % Define Propagation Steps
-dt_gen = 5*60/TU;               % renegerative propagation interval
+dt_regen = 5*60/TU;             % renegerative propagation interval
 dt_min = 1*60/TU;               % minimum propagation interval
-dt_prop = 1/TU;                 % propagation time step
+prop_step = 1/TU;               % propagation time step
 max_branches = 100;             % maximum n° of branches of the regenerative trajectory
 
 % Define Propagation Settings
 optODE_rt = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
-optODE_AOCS = odeset('RelTol', 1e-6, 'AbsTol', 1e-7);
+optODE_AOCS = odeset('RelTol', 1e-3, 'AbsTol', 1e-3);
 
 % Define Global signvect Variable
 global signvect
@@ -294,8 +280,6 @@ ref_stored = zeros(3, 2);          % stores the reference axes values at last ti
 TCC_rt0 = TCC_T0';
 t0_rt = t0_T;
 
-% w_0 = [-0.1, 0.05, 0]';                 % rad/s
-% omegas_0 = [0.5, 0.5, -0.5, -0.5]';     % rad/s
 w_0 = zeros(3, 1);                      % rad/s
 omegas_0 = zeros(4, 1);                 % rad/s
 qb_0 = [0.1, 0.3, -0.5]';
@@ -333,13 +317,12 @@ for branch = 1 : max_branches
     end
 
     % Define timespan
-    tspan_rt = [t0_rt : dt_prop : tf_rt]';
+    tspan_rt = [t0_rt : prop_step : tf_rt]';
 
     % Propagate to Final Propagation Time
     [~, TCC_rt] = ode113(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
         muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, misalignment, 0, 1), ...
-        tspan_rt, TCC_rt0, optODE_rt);
-    
+        tspan_rt, TCC_rt0, optODE_rt); 
 
 
     % ----- Retrieve Commanded Attitude ----- %
@@ -351,6 +334,7 @@ for branch = 1 : max_branches
     zc_MCI = zeros(M_rt, 3);
     R_N2C = zeros(3, 3, M_rt);
     Q_N2C = zeros(M_rt, 4);
+    u_rt = zeros(M_rt, 3);
     
     MEEt_rt = TCC_rt(:, 1:6);       % retrieve Target State
     COEt_rt = MEE2COE(MEEt_rt);
@@ -361,9 +345,9 @@ for branch = 1 : max_branches
     for i = 1 : M_rt
     
         % Retrieve Thrust Acceleration in LVLH
-        [~, ~, ~, ~, u, ~, ~, ~, ~] = NaturalFeedbackControl(tspan_rt(i), TCC_rt(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
+        [~, ~, ~, ~, u_rt(i, :), ~, ~, ~, ~] = NaturalFeedbackControl(tspan_rt(i), TCC_rt(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
             muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, misalignment, 0, 0);
-        xc_LVLH = u / norm(u);      % normalize to find xc versor in LVLH
+        xc_LVLH = u_rt(i, :)' / norm(u_rt(i, :));        % normalize to find xc versor in LVLH
     
         % Rotate from LVLH to MCI
         [R_LVLH2MCI, ~] = get_rotLVLH2MCI(Xt_MCI_rt(i, :)', tspan_rt(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
@@ -419,7 +403,6 @@ for branch = 1 : max_branches
         omega_c_rt(k, :) = unskew(-Rdot_N2C_rt * R_N2C(:, :, k)');
     end
     omega_cPPs_rt = get_statePP(tspan_rt, omega_c_rt);
-    
     omegadot_cPPs_rt = [fnder(omega_cPPs_rt(1), 1);
                       fnder(omega_cPPs_rt(2), 1);
                       fnder(omega_cPPs_rt(3), 1)];
@@ -430,9 +413,9 @@ for branch = 1 : max_branches
     
     % Define Time Domain
     t0_AOCS = t0_rt;
-    tf_AOCS = min(t0_rt + dt_gen, tf_rt);
-    tspan_AOCS = [t0_AOCS : dt_prop : tf_AOCS]';
-    fprintf('Propagating from t0 = %.4f hrs to tf = %.4f hrs\n', ([t0_AOCS, tf_AOCS]-t0)*TU/3600)
+    tf_AOCS = min(t0_rt + dt_regen, tf_rt);
+    tspan_AOCS = [t0_AOCS : prop_step : tf_AOCS]';
+    fprintf('Propagating from t0 = %.4f min to tf = %.4f min\n', ([t0_AOCS, tf_AOCS]-t0)*TU/60)
     
     qc0_0 = Q_N2C(1, 1);
     qc_0 = Q_N2C(1, 2:4)';
@@ -483,11 +466,28 @@ for branch = 1 : max_branches
     indices_ctrl = [indices_ctrl; M_AOCS];
     Xb_stack = [Xb_stack; Xb];
     Q_N2C_AOCS_stack = [Q_N2C_AOCS_stack; Q_N2C_AOCS];
+    w_stack = [w_stack; w];
+    omegas_stack = [omegas_stack; omegas];
 
     % Attitude Visualization
     if debug
 
         close all
+
+        figure('Name', strcat("Branch ", string(branch), " - Natural Trajectory"))
+        DrawTrajLVLH3D(TCC_rt(:, 7:9)*DU);
+
+        figure('name', strcat("Branch ", string(branch), " - Natural Control Components"))
+        u1 = plot((tspan_rt-t0)*TU*sec2hrs, u_rt(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
+        hold on
+        u2 = plot((tspan_rt-t0)*TU*sec2hrs, u_rt(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+        u3 = plot((tspan_rt-t0)*TU*sec2hrs, u_rt(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
+        ulim = plot((tspan_rt-t0)*TU*sec2hrs, u_limit*ones(length(tspan_rt), 1), 'r--', 'LineWidth', 1.2);
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+        title('Control Components')
+        grid on
+        legend([u1, u2, u3, ulim], '$u_r$', '$u_{\theta}$', '$u_h$', '$u_{max}$','Location', 'southeast', 'Fontsize', 12, 'Interpreter','latex');
 
         figure('name', strcat("Branch ", string(branch), " - Trajectory"))
         for k = 1 : length(indices_ctrl) - 1
@@ -519,26 +519,26 @@ for branch = 1 : max_branches
         legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
         grid on        
     
-        % figure('name', strcat("Branch ", string(branch), " - Body and Wheels Angular Velocity"))
-        % subplot(1, 2, 1)
-        % plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 1)/TU, 'LineWidth', 1.5)
-        % hold on
-        % plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 2)/TU, 'LineWidth', 1.5)
-        % plot((tspan_AOCS-t0)*TU*sec2hrs, w(:, 3)/TU, 'LineWidth', 1.5)
-        % xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        % ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
-        % legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
-        % grid on
-        % subplot(1, 2, 2)
-        % plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 1)/TU, 'LineWidth', 1.5)
-        % hold on
-        % plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 2)/TU, 'LineWidth', 1.5)
-        % plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 3)/TU, 'LineWidth', 1.5)
-        % plot((tspan_AOCS-t0)*TU*sec2hrs, omegas(:, 4)/TU, 'LineWidth', 1.5)
-        % xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        % ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
-        % legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
-        % grid on
+        figure('name', strcat("Branch ", string(branch), " - Body and Wheels Angular Velocity"))
+        subplot(1, 2, 1)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 1)/TU, 'LineWidth', 1.5)
+        hold on
+        plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 2)/TU, 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 3)/TU, 'LineWidth', 1.5)
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
+        grid on
+        subplot(1, 2, 2)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 1)/TU, 'LineWidth', 1.5)
+        hold on
+        plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 2)/TU, 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 3)/TU, 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 4)/TU, 'LineWidth', 1.5)
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
+        grid on
 
     end  
 
@@ -580,11 +580,12 @@ end
 % end
 
 % Store Final Mass Ratio Value
-x7f = TCC_ctrl(end, 13);
+TCC_ctrl = Y_ctrl(:, 1:13);
+x7f = Y_ctrl(end, 13);
 
 save('Data/attitude.mat');
 
-return
+
 %% Final Natural Drift
 
 % Define Forward Drift Propagation Parameters
@@ -689,9 +690,16 @@ for i = 1 : size(RHO_LVLH, 1)
         [dY, ~, ~, ~, u(i, :), ~, ~, ~, f_norms(i)] = ...
             NaturalFeedbackControl(tspan_ctrl(s), TCC_ctrl(s, :), EarthPPsMCI, SunPPsMCI, muM, ...
             muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0, 0);
-        RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_T, tspan(i));
         kp_store(i) = kp;
         u_norms(i) = norm(u(i, :));
+
+        for k = 1 : length(indices_ctrl) - 1
+            bot_index = sum(indices_ctrl(1:k));
+            top_index = sum(indices_ctrl(1:k+1))-1;
+            if s >= bot_index && s <= top_index
+                RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_T(:, k), tspan(i));
+            end
+        end
 
     % Terminal Trajectory: Natural Drift
     elseif i > M_ctrl_DA + M_ctrl
@@ -750,10 +758,11 @@ fprintf('Total Runtime: %.1f s.\n', runtime)
 figure('name', 'Chaser Trajectory in LVLH Space')
 C_LVLH = DrawTrajLVLH3D(RHO_LVLH(:, 1:3)*DU);
 Cd_LVLH = DrawTrajLVLH3D(RHOd_LVLH(:, 1:3)*DU, '#6efad2', '-.');
-vp_T = plot3(viapoints_T(:, 1)*DU, viapoints_T(:, 2)*DU, viapoints_T(:, 3)*DU, 'color', 'r', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
+% vp_T = plot3(viapoints_T(:, 1)*DU, viapoints_T(:, 2)*DU, viapoints_T(:, 3)*DU, 'color', 'r', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
 vp_DA = plot3(viapoints_DA(:, 1)*DU, viapoints_DA(:, 2)*DU, viapoints_DA(:, 3)*DU, 'color', 'b', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
 title('Chaser LVLH Trajectory')
-legend([C_LVLH, Cd_LVLH, vp_T, vp_DA], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points', 'Direct Approach Via Points'}, 'location', 'best')
+% legend([C_LVLH, Cd_LVLH, vp_T, vp_DA], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points', 'Direct Approach Via Points'}, 'location', 'best')
+legend([C_LVLH, Cd_LVLH, vp_DA], {'Chaser Trajectory', 'Reference Trajectory', 'Direct Approach Via Points'}, 'location', 'best')
 if opt.saveplots
     saveas(gcf, strcat('Output/Trajectory LVLH.jpg'))
 end
@@ -763,9 +772,10 @@ end
 figure('name', 'Terminal Chaser Trajectory in LVLH Space')
 C_LVLH_T = DrawTrajLVLH3D(RHO_LVLH(M_ctrl_DA:end, 1:3)*DU);
 Cd_LVLH_T = DrawTrajLVLH3D(RHOd_LVLH(M_ctrl_DA:end, 1:3)*DU, '#6efad2', '-.');
-vp_T = plot3(viapoints_T(:, 1)*DU, viapoints_T(:, 2)*DU, viapoints_T(:, 3)*DU, 'color', 'r', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
+% vp_T = plot3(viapoints_T(:, 1)*DU, viapoints_T(:, 2)*DU, viapoints_T(:, 3)*DU, 'color', 'r', 'linestyle', 'none', 'marker', '.', 'markersize', 15);
 title('Terminal Chaser LVLH Trajectory')
-legend([C_LVLH_T, Cd_LVLH_T, vp_T], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points'}, 'location', 'best')
+% legend([C_LVLH_T, Cd_LVLH_T, vp_T], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points'}, 'location', 'best')
+legend([C_LVLH_T, Cd_LVLH_T], {'Chaser Trajectory', 'Reference Trajectory'}, 'location', 'best')
 if opt.saveplots
     saveas(gcf, strcat('Output/Trajectory Terminal LVLH.jpg'))
 end
@@ -943,6 +953,53 @@ plot((tspan-t0)*TU*sec2hrs, acc(:, 3)*DU/TU^2, 'color', '#4195e8', 'LineWidth', 
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\rho_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
+grid on
+
+
+
+% --- Final Attitude Plots --- %
+
+figure('name', "Finals - Body and Commanded Attitude")
+subplot(1, 2, 1)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 1), 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 2), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 3), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 4), 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+legend('q_{b0}', 'q_{b1}', 'q_{b2}', 'q_{b3}', 'fontsize', 10, 'location', 'best')
+grid on
+subplot(1, 2, 2)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C_AOCS_stack(:, 1), 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C_AOCS_stack(:, 2), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C_AOCS_stack(:, 3), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C_AOCS_stack(:, 4), 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
+grid on        
+
+figure('name', "Finals - Body and Wheels Angular Velocity")
+subplot(1, 2, 1)
+plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 1)/TU, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 2)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 3)/TU, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
+grid on
+subplot(1, 2, 2)
+plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 1)/TU, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 2)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 3)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 4)/TU, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
 grid on
 
 
