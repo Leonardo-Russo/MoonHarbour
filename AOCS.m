@@ -4,8 +4,6 @@ function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
 
 % -------------------- Orbital Control -------------------- %
 
-critical_time = 11.290185810082459;
-
 % ----- Natural Relative Motion ----- %
 
 global pbar
@@ -126,7 +124,7 @@ Jc = [900, 50, -100;...
 
 % Gain Parameters
 omega_n = 0.03;     % rad/s
-% omega_n = 10;
+omega_n = 10;
 % omega_n = 100;
 xi = 1;
 c1 = 2 * omega_n^2;

@@ -17,7 +17,7 @@ opt = struct('name', "Progator Options");
 opt.saveplots = false;
 opt.create_animation = false;
 opt.show_progress = false;
-opt.compute_target = true;
+opt.compute_target = false;
 opt.N = 1000;                   % n° of points for the Interpolation
 opt.RelTolODE = 1e-7;           % options for ode()
 opt.AbsTolODE = 1e-6;
@@ -60,7 +60,7 @@ RHO0_LVLH = [1.5, 0, 0, -1e-6, -1e-3, -1e-3]';                  % km, km/s
 RHO0_LVLH = [RHO0_LVLH(1:3)/DU; RHO0_LVLH(4:6)/DU*TU];      % adim
 
 % Define Desired Conditions for Docking
-RHOf_LVLH = [5e-3, 0, 0, -1e-5, 0, 0]';                     % km, km/s
+RHOf_LVLH = [-5e-3, 0, 0, 1e-5, 0, 0]';                     % km, km/s
 RHOf_LVLH = [RHOf_LVLH(1:3)/DU; RHOf_LVLH(4:6)/DU*TU];      % adim
 
 % Define Direct Approach Conditions
@@ -199,15 +199,6 @@ t0_T = tspan_ctrl_DA(end);              % this will be the initial time for the 
 fprintf('Reached 50m Distance @ %.2f hrs.\n', (t0_T-t0)*TU/3600)
 
 
-% save('Data/temp/Direct Approach Propagation.mat');
-
-
-% % Show Direct Approach Trajectory
-% figure('name', 'Direct Approach Trajectory')
-% DrawTrajLVLH3D(TCC_ctrl_DA(:, 7:9)*DU);
-% testPPs(RHOdPPsLVLH_DA(1:3), tspan_ctrl_DA);
-
-
 %% Terminal Trajectory: Chaser Backwards Propagation
 
 % Define Natural Drift Propagation Settings
@@ -233,11 +224,6 @@ end
 TC0_backdrift = TC_backdrift(end, :)';
 t0_backdrift = tspan_back(end);
 
-
-% % Show Backdrift Trajectory
-% figure('name', 'Backdrift Trajectory')
-% DrawTrajLVLH3D(TC_backdrift(:, 7:9)*DU);
-
 save('Debugging.mat');
 
 %% Terminal Trajectory: Chaser Complete Docking Manoeuvre
@@ -260,14 +246,14 @@ omegas_stack = [];
 misalignment = define_misalignment_error("null");
 
 % Define Propagation Steps
-dt_regen = 5*60/TU;             % renegerative propagation interval
+dt_regen = 60*60/TU;             % renegerative propagation interval
 dt_min = 1*60/TU;               % minimum propagation interval
 prop_step = 1/TU;               % propagation time step
-max_branches = 100;             % maximum n° of branches of the regenerative trajectory
+max_branches = 1000;             % maximum n° of branches of the regenerative trajectory
 
 % Define Propagation Settings
 optODE_rt = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
-optODE_AOCS = odeset('RelTol', 1e-3, 'AbsTol', 1e-3);
+optODE_AOCS = odeset('RelTol', 1e-6, 'AbsTol', 1e-7);
 
 % Define Global signvect Variable
 global signvect
@@ -290,10 +276,9 @@ Y0_rt = [TCC_rt0; Xb0; w_0; omegas_0];     % AOCS extended State
 
 
 % temporary stuff
-debug = 1;
-nothing_works = 0;
+debug = 0;
 opt.initially_aligned = true;
-opt.show_progress = true;
+% kp = 1e-2;
 
 
 for branch = 1 : max_branches
@@ -303,7 +288,7 @@ for branch = 1 : max_branches
 
     TCC_rt0 = Y0_rt(1:13);
     % Set the Via Points and Interpolate the Reference Terminal Trajectory
-    [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [0, 1]);
+    [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1]);
 
     % Set Final Propagation Time and Define timespan
     if length(t_viapoints_rt) >= 3
@@ -383,7 +368,8 @@ for branch = 1 : max_branches
             [q0c, qc] = C2q(R_N2C(:, :, i));
             signvect = [sign(q0c), sign(qc(1)), sign(qc(2)), sign(qc(3))]';     % initialize the signvect variable
         else
-            [q0c, qc] = matrixToQuat(R_N2C(:, :, i));
+            % [q0c, qc] = matrixToQuat(R_N2C(:, :, i));
+            [q0c, qc] = C2q(R_N2C(:, :, i));
         end
         Q_N2C(i, :) = [q0c, qc'];
     
@@ -415,7 +401,6 @@ for branch = 1 : max_branches
     t0_AOCS = t0_rt;
     tf_AOCS = min(t0_rt + dt_regen, tf_rt);
     tspan_AOCS = [t0_AOCS : prop_step : tf_AOCS]';
-    fprintf('Propagating from t0 = %.4f min to tf = %.4f min\n', ([t0_AOCS, tf_AOCS]-t0)*TU/60)
     
     qc0_0 = Q_N2C(1, 1);
     qc_0 = Q_N2C(1, 2:4)';
@@ -429,16 +414,10 @@ for branch = 1 : max_branches
     qb_0 = Y0_rt(15:17);
     sign_qe0_0 = sign(qc0_0*qb0_0 + qc_0'*qb_0);        % needed for short rotation
     
-    if opt.show_progress
-        pbar = waitbar(0, 'Performing AOCS');
-    end
     % Perform the Attitude Propagation
     [tspan_AOCS, Y_AOCS] = ode113(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
         muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress), ...
         tspan_AOCS, Y0_rt, optODE_AOCS);
-    if opt.show_progress
-        close(pbar)
-    end
     
     % Retrieve Attitude Evolution
     Xb = Y_AOCS(:, 14:17);
@@ -473,6 +452,8 @@ for branch = 1 : max_branches
     if debug
 
         close all
+
+        fprintf('Propagating from t0 = %.4f min to tf = %.4f min\n', ([t0_AOCS, tf_AOCS]-t0)*TU/60)
 
         figure('Name', strcat("Branch ", string(branch), " - Natural Trajectory"))
         DrawTrajLVLH3D(TCC_rt(:, 7:9)*DU);
@@ -519,52 +500,28 @@ for branch = 1 : max_branches
         legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
         grid on        
     
-        figure('name', strcat("Branch ", string(branch), " - Body and Wheels Angular Velocity"))
-        subplot(1, 2, 1)
-        plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 1)/TU, 'LineWidth', 1.5)
-        hold on
-        plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 2)/TU, 'LineWidth', 1.5)
-        plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 3)/TU, 'LineWidth', 1.5)
-        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
-        legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
-        grid on
-        subplot(1, 2, 2)
-        plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 1)/TU, 'LineWidth', 1.5)
-        hold on
-        plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 2)/TU, 'LineWidth', 1.5)
-        plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 3)/TU, 'LineWidth', 1.5)
-        plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 4)/TU, 'LineWidth', 1.5)
-        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
-        legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
-        grid on
+        % figure('name', strcat("Branch ", string(branch), " - Body and Wheels Angular Velocity"))
+        % subplot(1, 2, 1)
+        % plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 1)/TU, 'LineWidth', 1.5)
+        % hold on
+        % plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 2)/TU, 'LineWidth', 1.5)
+        % plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 3)/TU, 'LineWidth', 1.5)
+        % xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        % ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+        % legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
+        % grid on
+        % subplot(1, 2, 2)
+        % plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 1)/TU, 'LineWidth', 1.5)
+        % hold on
+        % plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 2)/TU, 'LineWidth', 1.5)
+        % plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 3)/TU, 'LineWidth', 1.5)
+        % plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 4)/TU, 'LineWidth', 1.5)
+        % xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        % ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+        % legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
+        % grid on
 
-    end  
-
-    if nothing_works             % show attitude evolution
-        fps = 10;
-        for k = 1 : M_AOCS
-            Tc = eye(4);
-            Tb = eye(4);
-            Tc(1:3, 1:3) = rotppsval(R_N2C_PPs_rt, tspan_AOCS(k));       % rotation from MCI to Commanded
-            Tb(1:3, 1:3) = q2C(Xb(k, 1), Xb(k, 2:4)');       % rotation from MCI to Commanded
-            if branch == 1 && k == 1
-                figure('Name', 'Attitude Evolution');
-                commanded = show_frame(Tc, '#349beb', 'C');
-                body = show_frame(Tb, '#fc9803', 'B');
-                N = show_frame(eye(4), '#000000', 'MCI');
-                axis([-1, 1, -1, 1, -1, 1])
-                grid on
-            else
-                if rem(k, fps) == 0
-                    update_frame(commanded, Tc);
-                    update_frame(body, Tb);
-                end
-            end
-        end
-    end
-    
+    end    
 
     % Set next Initial Conditions
     t0_rt = tf_AOCS;
@@ -592,10 +549,6 @@ save('Data/attitude.mat');
 tspan_drift = linspace(tspan_ctrl(end), tf + abs(tf-tspan_ctrl(end)), opt.N);                   % define the Forward Drift tspan
 TC0_drift = TCC_ctrl(end, 1:12);                                                                % define Initial Conditions
 optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_fwd(t, Y));     % define options
-
-if opt.show_progress
-    pbar = waitbar(0, 'Performing the Direct Approach Rendezvous');
-end
 
 % Perform the Final Natural Drift of the Chaser
 [tspan_drift, TC_drift, t_fwdstop, ~, ~] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
@@ -627,8 +580,6 @@ clear
 clc
 
 load('Data/temp/Raw Propagation.mat');
-
-opt.show_progress = true;
 
 % Retrieve States from Propagation
 MEEt = TCC(:, 1:6);
@@ -1001,6 +952,43 @@ xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
 grid on
+
+%% Animations
+
+show_attitude_animation = 0;
+
+if show_attitude_animation             % show attitude evolution
+    close all
+    clc
+    branch_animation = 1;
+    top_index = sum(indices_ctrl(1:branch_animation+1))-1;
+    fps = 5;
+    for k = 1 : M_ctrl
+        Tc = eye(4);
+        Tb = eye(4);
+        Tc(1:3, 1:3) = q2C(Q_N2C_AOCS_stack(k, 1), Q_N2C_AOCS_stack(k, 2:4)');       % rotation from MCI to Commanded
+        Tb(1:3, 1:3) = q2C(Xb_stack(k, 1), Xb_stack(k, 2:4)');                                  % rotation from MCI to Body
+        if k == 1
+            figure('Name', 'Attitude Evolution');
+            commanded = show_frame(Tc, '#349beb', 'C');
+            body = show_frame(Tb, '#fc9803', 'B');
+            N = show_frame(eye(4), '#000000', 'MCI');
+            axis([-1, 1, -1, 1, -1, 1])
+            grid on
+            fprintf('Branch: %d\n', branch_animation);
+        else
+            if k > top_index
+                branch_animation = branch_animation + 1;
+                top_index = sum(indices_ctrl(1:branch_animation+1))-1;
+                fprintf('Branch: %d\n', branch_animation);
+            end
+            if rem(k, fps) == 0
+                update_frame(commanded, Tc);
+                update_frame(body, Tb);
+            end
+        end
+    end
+end
 
 
 
