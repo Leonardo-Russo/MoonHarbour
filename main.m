@@ -281,7 +281,7 @@ Y0_rt = [TCC_rt0; Xb0; w_0; omegas_0];     % AOCS extended State
 
 
 % temporary stuff
-debug = 0;
+debug = 1;
 opt.initially_aligned = true;
 % kp = 1e-2;
 
@@ -331,6 +331,11 @@ for branch = 1 : max_branches
     Xt_MCI_rt = COE2rvPCI(COEt_rt, muM);
     
     c3_MCI = [0, 0, 1]';
+
+    Q_N2C_test = zeros(M_rt, 4);
+
+    global signvect_stack
+    signvect_stack = [];
     
     for i = 1 : M_rt
     
@@ -371,13 +376,32 @@ for branch = 1 : max_branches
         if branch == 1 && i == 1
             signvect = [1 1 1 1]';
             % [q0c, qc] = matrixToQuat(R_N2C(:, :, i));
-            [q0c, qc] = C2q(R_N2C(:, :, i));
+            % [q0c, qc] = C2q(R_N2C(:, :, i));
+            [q0c, qc] = Atoq_alt(R_N2C(:, :, i));
+            [q0c_test, qc_test] = matrixToQuat(R_N2C(:, :, i));
             % signvect = [sign(q0c), sign(qc(1)), sign(qc(2)), sign(qc(3))]';     % initialize the signvect variable
         else
             % [q0c, qc] = matrixToQuat(R_N2C(:, :, i));
-            [q0c, qc] = C2q(R_N2C(:, :, i));
+            % [q0c, qc] = C2q(R_N2C(:, :, i));
+            [q0c, qc] = Atoq_alt(R_N2C(:, :, i));
+            [q0c_test, qc_test] = matrixToQuat(R_N2C(:, :, i));
+            qtol = 1e-3;
+            if abs(q0c-q0c_test) > qtol
+                % warning('hehe');
+            end
+            if abs(qc(1)-qc_test(1)) > qtol
+                % warning('hehe');
+            end
+            if abs(qc(2)-qc_test(2)) > qtol
+                % warning('hehe');
+            end
+            if abs(qc(3)-qc_test(3)) > qtol
+                % warning('hehe');
+            end
+            
         end
         Q_N2C(i, :) = [q0c, qc'];
+        Q_N2C_test(i, :) = [q0c_test, qc_test'];
         % norm(Q_N2C(i, :))
     
     end
@@ -485,7 +509,7 @@ for branch = 1 : max_branches
     zc_plot_stack = [zc_plot_stack; zc_plot];
 
     % Attitude Visualization
-    if debug
+    if debug && branch >= 7
 
         close all
 
