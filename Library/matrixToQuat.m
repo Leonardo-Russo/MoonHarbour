@@ -4,7 +4,7 @@ global signvect;
 
 qsqrd=[1,1,-1,-1;1,-1,1,-1;1,-1,-1,1;1,1,1,1]^(-1)*[matrr(1,1);matrr(2,2);matrr(3,3);1];
 
-[maxq,indmax]=max(qsqrd);
+[maxq,indmax]=max(qsqrd);   % ATTENZIONE
 
 % matrix=[q0^2+q1^2-q2^2-q3^2,2*(q1*q2+q0*q3),2*(q1*q3-q0*q2);...
 %     2*(q1*q2-q0*q3),q0^2+q2^2-q1^2-q3^2,2*(q3*q2+q0*q1);...

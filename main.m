@@ -60,7 +60,7 @@ RHO0_LVLH = [1.5, 0, 0, -1e-6, -1e-3, -1e-3]';                  % km, km/s
 RHO0_LVLH = [RHO0_LVLH(1:3)/DU; RHO0_LVLH(4:6)/DU*TU];      % adim
 
 % Define Desired Conditions for Docking
-RHOf_LVLH = [-5e-3, 0, 0, 1e-5, 0, 0]';                     % km, km/s
+RHOf_LVLH = [5e-3, 0, 0, -1e-5, 0, 0]';                     % km, km/s
 RHOf_LVLH = [RHOf_LVLH(1:3)/DU; RHOf_LVLH(4:6)/DU*TU];      % adim
 
 % Define Direct Approach Conditions
@@ -241,19 +241,24 @@ Xb_stack = [];
 Q_N2C_AOCS_stack = [];
 w_stack = [];
 omegas_stack = [];
+Qe_AOCS_stack = [];
+u_rt_AOCS_stack = [];
+xc_plot_stack = [];
+yc_plot_stack = [];
+zc_plot_stack = [];
 
 % Set Null Misalignment
 misalignment = define_misalignment_error("null");
 
 % Define Propagation Steps
-dt_regen = 60*60/TU;             % renegerative propagation interval
+dt_regen = 5*60/TU;             % renegerative propagation interval
 dt_min = 1*60/TU;               % minimum propagation interval
 prop_step = 1/TU;               % propagation time step
-max_branches = 1000;             % maximum n° of branches of the regenerative trajectory
+max_branches = 500;             % maximum n° of branches of the regenerative trajectory
 
 % Define Propagation Settings
 optODE_rt = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
-optODE_AOCS = odeset('RelTol', 1e-6, 'AbsTol', 1e-7);
+optODE_AOCS = odeset('RelTol', 1e-3, 'AbsTol', 1e-4);
 
 % Define Global signvect Variable
 global signvect
@@ -345,7 +350,6 @@ for branch = 1 : max_branches
                 approach = 1;
             else
                 error('Second Commanded Attitude approach still needs to be defined.')
-                approach = 2;
             end
         end
 
@@ -363,15 +367,18 @@ for branch = 1 : max_branches
         zc_MCI(i, :) = cross(xc_MCI(i, :)', yc_MCI(i, :)');
     
         R_N2C(:, :, i) = [xc_MCI(i, :)', yc_MCI(i, :)', zc_MCI(i, :)']';
-    
+        % det(R_N2C(:, :, i))
         if branch == 1 && i == 1
+            signvect = [1 1 1 1]';
+            % [q0c, qc] = matrixToQuat(R_N2C(:, :, i));
             [q0c, qc] = C2q(R_N2C(:, :, i));
-            signvect = [sign(q0c), sign(qc(1)), sign(qc(2)), sign(qc(3))]';     % initialize the signvect variable
+            % signvect = [sign(q0c), sign(qc(1)), sign(qc(2)), sign(qc(3))]';     % initialize the signvect variable
         else
             % [q0c, qc] = matrixToQuat(R_N2C(:, :, i));
             [q0c, qc] = C2q(R_N2C(:, :, i));
         end
         Q_N2C(i, :) = [q0c, qc'];
+        % norm(Q_N2C(i, :))
     
     end
 
@@ -427,16 +434,40 @@ for branch = 1 : max_branches
     % In-Step Post Processing
     M_AOCS = length(tspan_AOCS);
     Q_N2C_AOCS = zeros(M_AOCS, 4);
+    Qe_AOCS = zeros(M_AOCS, 4);
+    u_AOCS = zeros(M_AOCS, 3);
     for j = 1 : M_AOCS
+
+        % % AOCS Reconstruction
+        % [~, ~, ~, ~, u_AOCS(i, :), ~, ~, ~, ~] = AOCS(tspan_AOCS(i), Y_AOCS(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
+        % muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, 0);
+
+        % Attitude Reconstruction
         Q_N2C_AOCS(j, :) = ppsval(Q_N2C_PPs_rt, tspan_AOCS(j));
+        qc0_AOCS = Q_N2C_AOCS(j, 1);
+        qc_AOCS = Q_N2C_AOCS(j, 2:4)';
+        qb0_AOCS = Xb(j, 1);
+        qb_AOCS = Xb(j, 2:4)';
+        Qe_AOCS(j, 1) = qc0_AOCS*qb0_AOCS + qc_AOCS' * qb_AOCS;
+        Qe_AOCS(j, 2:4) = (-qc_AOCS*qb0_AOCS + qc0_AOCS*qb_AOCS - skew(qc_AOCS)*qb_AOCS)';
     end
+    Q_N2C_final = Q_N2C_AOCS(end, :);
+    R_N2C_final = q2C(Q_N2C_final(1), Q_N2C_final(2:4)');
+    zc_ref = R_N2C_final(3, :)';
 
 
+    % THIS ONLY WORKS SINCE THE TIMESTEP IS THE SAME
+    u_rt_AOCS = u_rt(1:M_AOCS, :);
 
+
+    xc_plot = squeeze(R_N2C(1, :, 1:M_AOCS))';
+    yc_plot = squeeze(R_N2C(2, :, 1:M_AOCS))';
+    zc_plot = squeeze(R_N2C(3, :, 1:M_AOCS))';
     % ----- Results Processing and Visualization ----- %
 
     % Store last Reference Axis Value
-    ref_stored(:, 1) = zc_MCI(M_rt, :)';
+    % ref_stored(:, 1) = zc_MCI(M_rt, :)';
+    ref_stored(:, 1) = zc_ref;
 
     % Stack the Output
     tspan_ctrl = [tspan_ctrl; tspan_AOCS];
@@ -447,6 +478,11 @@ for branch = 1 : max_branches
     Q_N2C_AOCS_stack = [Q_N2C_AOCS_stack; Q_N2C_AOCS];
     w_stack = [w_stack; w];
     omegas_stack = [omegas_stack; omegas];
+    Qe_AOCS_stack = [Qe_AOCS_stack; Qe_AOCS];
+    u_rt_AOCS_stack = [u_rt_AOCS_stack; u_rt_AOCS];
+    xc_plot_stack = [xc_plot_stack; xc_plot];
+    yc_plot_stack = [yc_plot_stack; yc_plot];
+    zc_plot_stack = [zc_plot_stack; zc_plot];
 
     % Attitude Visualization
     if debug
@@ -459,11 +495,11 @@ for branch = 1 : max_branches
         DrawTrajLVLH3D(TCC_rt(:, 7:9)*DU);
 
         figure('name', strcat("Branch ", string(branch), " - Natural Control Components"))
-        u1 = plot((tspan_rt-t0)*TU*sec2hrs, u_rt(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
+        u1 = plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
         hold on
-        u2 = plot((tspan_rt-t0)*TU*sec2hrs, u_rt(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
-        u3 = plot((tspan_rt-t0)*TU*sec2hrs, u_rt(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
-        ulim = plot((tspan_rt-t0)*TU*sec2hrs, u_limit*ones(length(tspan_rt), 1), 'r--', 'LineWidth', 1.2);
+        u2 = plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+        u3 = plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
+        ulim = plot((tspan_ctrl-t0)*TU*sec2hrs, u_limit*ones(length(tspan_ctrl), 1), 'r--', 'LineWidth', 1.2);
         xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
         title('Control Components')
@@ -498,8 +534,50 @@ for branch = 1 : max_branches
         xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
         legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
-        grid on        
-    
+        grid on  
+
+        figure('name', strcat("Branch ", string(branch), " - Error Quaternions"))
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Qe_AOCS_stack(:, 1), 'LineWidth', 1.5)
+        hold on
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Qe_AOCS_stack(:, 2), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Qe_AOCS_stack(:, 3), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Qe_AOCS_stack(:, 4), 'LineWidth', 1.5)
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('q_{e0}', 'q_{e1}', 'q_{e2}', 'q_{e3}', 'fontsize', 10, 'location', 'best')
+        grid on
+
+        figure('name', strcat("Branch ", string(branch), " - xc"))
+        plot((tspan_ctrl-t0)*TU*sec2hrs, xc_plot_stack(:, 1), 'LineWidth', 1.5)
+        hold on
+        plot((tspan_ctrl-t0)*TU*sec2hrs, xc_plot_stack(:, 2), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, xc_plot_stack(:, 3), 'LineWidth', 1.5)
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$x_{c,i}$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('x_{c1}', 'x_{c2}', 'x_{c3}', 'fontsize', 10, 'location', 'best')
+        grid on
+
+        figure('name', strcat("Branch ", string(branch), " - yc"))
+        plot((tspan_ctrl-t0)*TU*sec2hrs, yc_plot_stack(:, 1), 'LineWidth', 1.5)
+        hold on
+        plot((tspan_ctrl-t0)*TU*sec2hrs, yc_plot_stack(:, 2), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, yc_plot_stack(:, 3), 'LineWidth', 1.5)
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$y_{c,i}$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('y_{c1}', 'y_{c2}', 'y_{c3}', 'fontsize', 10, 'location', 'best')
+        grid on
+
+        figure('name', strcat("Branch ", string(branch), " - zc"))
+        plot((tspan_ctrl-t0)*TU*sec2hrs, zc_plot_stack(:, 1), 'LineWidth', 1.5)
+        hold on
+        plot((tspan_ctrl-t0)*TU*sec2hrs, zc_plot_stack(:, 2), 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, zc_plot_stack(:, 3), 'LineWidth', 1.5)
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$z_{c,i}$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('z_{c1}', 'z_{c2}', 'z_{c3}', 'fontsize', 10, 'location', 'best')
+        grid on
+
+
         % figure('name', strcat("Branch ", string(branch), " - Body and Wheels Angular Velocity"))
         % subplot(1, 2, 1)
         % plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 1)/TU, 'LineWidth', 1.5)
@@ -606,6 +684,10 @@ u = zeros(M, 3);
 u_norms = zeros(M, 1);
 f_norms = zeros(M, 1);
 kp_store = zeros(M, 1);
+qe0 = zeros(M_ctrl, 1);
+qe = zeros(M_ctrl, 3);
+q0_LVLHt2MCI = zeros(M_ctrl, 1);
+q_LVLHt2MCI = zeros(M_ctrl, 3);
 
 acc = zeros(M, 3);
 
@@ -637,20 +719,31 @@ for i = 1 : size(RHO_LVLH, 1)
     % Terminal Trajectory: Natural Feedback Control Law
     elseif i > M_ctrl_DA && i <= M_ctrl_DA + M_ctrl
 
-        s = i - M_ctrl_DA;              % auxiliary index
-        [dY, ~, ~, ~, u(i, :), ~, ~, ~, f_norms(i)] = ...
+        s = i - M_ctrl_DA;          % auxiliary index
+
+        [dY, ~, ~, ~, u(i, :), ~, ~, ~, f_norms(i)] = ...       % compute control values
             NaturalFeedbackControl(tspan_ctrl(s), TCC_ctrl(s, :), EarthPPsMCI, SunPPsMCI, muM, ...
             muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0, 0);
         kp_store(i) = kp;
         u_norms(i) = norm(u(i, :));
-
-        for k = 1 : length(indices_ctrl) - 1
+        
+        for k = 1 : length(indices_ctrl) - 1        % retrieve reference trajectory
             bot_index = sum(indices_ctrl(1:k));
             top_index = sum(indices_ctrl(1:k+1))-1;
             if s >= bot_index && s <= top_index
                 RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_T(:, k), tspan(i));
             end
         end
+        
+        qc0_post = Q_N2C_AOCS_stack(s, 1);          % compute error quaternions
+        qc_post = Q_N2C_AOCS_stack(s, 2:4)';
+        qb0_post = Y_ctrl(s, 14);
+        qb_post = Y_ctrl(s, 15:17)';
+        qe0(s) = qc0_post*qb0_post + qc_post' * qb_post;
+        qe(s, :) = (-qc_post*qb0_post + qc0_post*qb_post - skew(qc_post)*qb_post)';
+
+        R_LVLHt2MCI_post = get_rotLVLH2MCI(Xt_MCI(i, :)', tspan(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
+        [q0_LVLHt2MCI(s), q_LVLHt2MCI(s, :)] = C2q(R_LVLHt2MCI_post);
 
     % Terminal Trajectory: Natural Drift
     elseif i > M_ctrl_DA + M_ctrl
@@ -678,6 +771,12 @@ end
 
 runtime = toc;
 
+% Create .json file for rendering
+Q_LVLH2MCI = [q0_LVLHt2MCI, q_LVLHt2MCI];
+QB_LVLH = quatmultiply(Y_ctrl(:, 14:17), Q_LVLH2MCI);
+renderdata = [Y_ctrl(:, 7:9)*DU*1e3, QB_LVLH];
+save('Data/Graphics/renderdata.mat', 'renderdata');
+
 save('Data/temp/Post-Processed Propagation.mat');
 
 
@@ -688,7 +787,7 @@ clear
 load('Data/temp/Post-Processed Propagation.mat');
 clc
 
-
+opt.savechoice = true;
 % Show Runtime
 fprintf('Total Runtime: %.1f s.\n', runtime)
 
@@ -932,6 +1031,19 @@ ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
 legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
 grid on        
 
+
+figure('name', "Error Quaternions")
+plot((tspan_ctrl-t0)*TU*sec2hrs, qe0, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, qe(:, 1), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, qe(:, 2), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, qe(:, 3), 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+legend('q_{e0}', 'q_{e1}', 'q_{e2}', 'q_{e3}', 'fontsize', 10, 'location', 'best')
+grid on
+
+
 figure('name', "Finals - Body and Wheels Angular Velocity")
 subplot(1, 2, 1)
 plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 1)/TU, 'LineWidth', 1.5)
@@ -958,11 +1070,11 @@ grid on
 show_attitude_animation = 0;
 
 if show_attitude_animation             % show attitude evolution
-    close all
+    % close all
     clc
     branch_animation = 1;
     top_index = sum(indices_ctrl(1:branch_animation+1))-1;
-    fps = 5;
+    fps = 10;
     for k = 1 : M_ctrl
         Tc = eye(4);
         Tb = eye(4);
