@@ -17,7 +17,7 @@ opt = struct('name', "Progator Options");
 opt.saveplots = false;
 opt.create_animation = false;
 opt.show_progress = true;
-opt.compute_target = false;
+opt.compute_target = true;
 
 % Define options for ode113()
 opt.RelTolODE = 1e-7;
@@ -203,7 +203,7 @@ stopSaturationTime = tspan_ctrl_DA(end);
 
 % Perform Natural Feedback Control
 [tspan_temp, TCC_temp] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, kp, DU, TU, misalignment, opt.show_progress), ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, kp, DU, TU, misalignment, opt.show_progress, 0), ...
     [tspan_ctrl_DA(end), t0_backdrift_DA], TCC_ctrl_DA(end, :), opt.N, @is_terminal_distance);
 
 % Retrieve Final State Values
@@ -277,10 +277,19 @@ N_inner_T = round(prediction_delta_T/dt_ref) - 1;       % n° of points in the i
 
 %% Terminal Trajectory: Perform Chaser Rendezvous Manoeuvre and Natural Drift
 
-% Perform Rendezvous Propagation
-[tspan_ctrl, TCC_ctrl] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, opt.show_progress), ...
-    [t0_T, t0_backdrift], TCC_T0, opt.N);
+% Propagate to Final Propagation Time
+tspan_ctrl = [t0_T : 1/TU : t0_backdrift]';
+optODE_ctrl = odeset('RelTol', 1e-11, 'AbsTol', 1e-11);
+kp = 10;
+
+[~, TCC_ctrl] = ode113(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
+    muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, opt.show_progress, 1), ...
+    tspan_ctrl, TCC_T0, optODE_ctrl);
+
+% % Perform Rendezvous Propagation
+% [tspan_ctrl, TCC_ctrl] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
+%     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, opt.show_progress, 0), ...
+%     [t0_T, t0_backdrift], TCC_T0, opt.N);
 
 
 % Retrieve Final Mass Ratio Value
@@ -387,7 +396,7 @@ for i = 1 : size(RHO_LVLH, 1)
         s = i - M_ctrl_DA;              % auxiliary index
         [~, ~, ~, ~, u(:, i), ~, ~, ~, f_norms(i)] = ...
             NaturalFeedbackControl(tspan_ctrl(s), TCC_ctrl(s, :), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T, kp, DU, TU, misalignment, 0, 0);
         RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_T, tspan(i));
         kp_store(i) = kp;
         u_norms(i) = norm(u(:, i));

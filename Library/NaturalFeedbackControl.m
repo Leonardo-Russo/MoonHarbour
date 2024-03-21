@@ -1,7 +1,7 @@
 function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm] = NaturalFeedbackControl(t, ...
     TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, misalignment, clock)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, misalignment, clock, is_row)
 
 % ----- Natural Relative Motion ----- %
 
@@ -11,8 +11,13 @@ global pbar
 dTCC = zeros(13, 1); 
     
 % Retrieve Data from Input
-MEEt = TCC(1:6)';
-RHO_LVLH = TCC(7:12)';
+if is_row
+    MEEt = TCC(1:6);
+    RHO_LVLH = TCC(7:12);
+else
+    MEEt = TCC(1:6)';
+    RHO_LVLH = TCC(7:12)';
+end
 x7 = TCC(13);
 
 % Retrieve RHO State Variables
