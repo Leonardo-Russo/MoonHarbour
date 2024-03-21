@@ -1,5 +1,5 @@
 function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
-    rhodotd_LVLH, rhoddotd_LVLH, f_norm] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
+    rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, xb_LVLH] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
     psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, clock)
 
 % -------------------- Orbital Control -------------------- %
@@ -120,11 +120,13 @@ qb = Xb(2:4);
 % Define Chaser Parameters
 Jc = [900, 50, -100;...
       50, 1100, 150;...
-      -100, 150, 1250];     % kg m^2
+      -100, 150, 1250]*1e-6/DU^2;       % (kg) m^2
 
 % Gain Parameters
-omega_n = 0.03;     % rad/s
-omega_n = 10;
+omega_n = 0.1*TU;     % rad/s
+% omega_n = 0.05*TU;     % rad/s
+% omega_n = 1*TU;
+% omega_n = 10;
 % omega_n = 100;
 xi = 1;
 c1 = 2 * omega_n^2;
@@ -151,8 +153,11 @@ a3 = [-1/sqrt(3)    1/sqrt(3)      1/sqrt(3)]';
 a4 = [-1/sqrt(3)    -1/sqrt(3)     1/sqrt(3)]';
 as = [a1, a2, a3, a4];
 
-Is = 1;     % kg m^2
-It = 0.5;   % kg m^2
+% Is = 1;     % kg m^2
+% It = 0.5;   % kg m^2
+
+Is = 1*1e-6/DU^2;     % kg m^2
+It = 0.5*1e-6/DU^2;   % kg m^2
 
 A = buildA(Is, as);         % this is the A matrix for reaction wheels
 
@@ -176,8 +181,8 @@ xb_dot = [qb0_dot; qb_dot];
 R_B2N = q2C(qb0, qb)';
 xb_MCI = R_B2N(:, 1);
 xb_LVLH = R_MCI2LVLHt * xb_MCI;
-% u = un_norm * xb_LVLH;
-u = un_hat * un_norm;
+u = un_norm * xb_LVLH;
+% u = un_hat * un_norm;
 
 
 % ---------- Assign State Derivatives ---------- %

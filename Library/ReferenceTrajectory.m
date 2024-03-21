@@ -70,7 +70,8 @@ M = 1000;   % n° of points for sample tspan
 tspan_check = linspace(t0, tf, M)';
 dist = zeros(M, 1);
 
-emergency_radius = 10e-3/DU;          % 10m of emergency sphere radius
+sphere_radius = 10e-3/DU;           % 10m of emergency sphere radius
+emergency_radius = 8e-3/DU;
 
 % Check for Emergency Sphere Intersection
 collision = 0;    
@@ -97,8 +98,8 @@ if collision
     rho_0_hat = rho_0 / norm(rho_0);
 
     % Compute rho_1
-    xi = acos(emergency_radius/norm(rho_0));
-    rho_1 = emergency_radius * (cos(xi)*rho_0_hat + sin(xi)*lambda0_hat);
+    xi = acos(sphere_radius/norm(rho_0));
+    rho_1 = sphere_radius * (cos(xi)*rho_0_hat + sin(xi)*lambda0_hat);
 
     % Create Additional Via Point
     rho_r1 = rho_1(1);
