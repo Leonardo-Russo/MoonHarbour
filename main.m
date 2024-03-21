@@ -17,7 +17,7 @@ opt = struct('name', "Progator Options");
 opt.saveplots = false;
 opt.create_animation = false;
 opt.show_progress = false;
-opt.compute_target = false;
+opt.compute_target = true;
 opt.N = 1000;                   % n° of points for the Interpolation
 opt.RelTolODE = 1e-7;           % options for ode()
 opt.AbsTolODE = 1e-6;
@@ -48,7 +48,7 @@ sec2hrs = 1/3600;                                       % hrs
 
 % Define Time Domain
 date0 = datetime('2025-05-23 9:56:10');
-datef = datetime('2025-05-23 21:56:10');    % @ periselenium
+datef = datetime('2025-05-23 22:56:10');    % @ periselenium
 total_time = datef - date0;
 
 % Define Control Limit
@@ -60,7 +60,7 @@ RHO0_LVLH = [1.5, 0, 0, -1e-6, -1e-3, -1e-3]';                  % km, km/s
 RHO0_LVLH = [RHO0_LVLH(1:3)/DU; RHO0_LVLH(4:6)/DU*TU];      % adim
 
 % Define Desired Conditions for Docking
-RHOf_LVLH = [5e-3, 0, 0, -1e-5, 0, 0]';                     % km, km/s
+RHOf_LVLH = [-5e-3, 0, 0, 1e-5, 0, 0]';                     % km, km/s
 RHOf_LVLH = [RHOf_LVLH(1:3)/DU; RHOf_LVLH(4:6)/DU*TU];      % adim
 
 % Define Direct Approach Conditions
@@ -224,12 +224,12 @@ end
 TC0_backdrift = TC_backdrift(end, :)';
 t0_backdrift = tspan_back(end);
 
-save('Debugging.mat');
+save('Data/debugging.mat');
 
 %% Terminal Trajectory: Chaser Complete Docking Manoeuvre
 close all
 clear
-load('Debugging.mat');
+load('Data/debugging.mat');
 clc
 
 % Initialize Regenerative Quantities
@@ -249,8 +249,8 @@ u_AOCS_stack = [];
 misalignment = define_misalignment_error("null");
 
 % Define Propagation Settings
-dt_regen = 5*60/TU;             % renegerative propagation interval
-dt_min = 1*60/TU;               % minimum propagation interval
+dt_regen = 60*60/TU;             % renegerative propagation interval
+dt_min = 0.5*60/TU;               % minimum propagation interval
 prop_step = 1/TU;               % propagation time step
 max_branches = 500;             % maximum n° of branches of the regenerative trajectory
 optODE_rt = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
@@ -260,8 +260,8 @@ optODE_AOCS = odeset('RelTol', 1e-3, 'AbsTol', 1e-4);
 global signvect
 
 % Define Approach Options
-approach_tol = 1e-2;                % to make sure that initially xc_MCI is not aligned with c3_MCI
-ref_stored = zeros(3, 2);          % stores the reference axes values at last time of previous branch
+ref_axis_tol = 1e-2;                % to make sure that initially xc_MCI is not aligned with c3_MCI
+ref_stored = zeros(3, 1);           % stores the reference axes values at last time of previous branch
 
 % Define Initial Conditions
 TCC_rt0 = TCC_T0';
@@ -277,9 +277,8 @@ Y0_rt = [TCC_rt0; Xb0; w_0; omegas_0];     % AOCS extended State
 
 
 % temporary stuff
-debug = 1;
+debug = 0;
 opt.initially_aligned = true;
-% kp = 1e-2;
 
 
 for branch = 1 : max_branches
@@ -341,16 +340,15 @@ for branch = 1 : max_branches
 
         % Choose Commanded Reference Frame approach
         if branch == 1 && i == 1
-            if norm(cross(c3_MCI, xc_MCI(i, :)')) > approach_tol
+            if norm(cross(c3_MCI, xc_MCI(i, :)')) > ref_axis_tol
                 ref3_MCI = c3_MCI;      % sets c3_MCI as the initial third axis reference
-                approach = 1;
+                ref_axis_flag = 1;
             else
                 error('Second Commanded Attitude approach still needs to be defined.')
             end
         end
-
         if branch > 1 && i == 1
-            if approach == 1
+            if ref_axis_flag == 1
                 ref3_MCI = ref_stored(:, 1);
             else
                 error('Second Commanded Attitude approach still needs to be defined.')
@@ -451,7 +449,7 @@ for branch = 1 : max_branches
     Q_N2C_final = Q_N2C_AOCS(end, :);
     R_N2C_final = q2C(Q_N2C_final(1), Q_N2C_final(2:4)');
     zc_ref = R_N2C_final(3, :)';
-    if approach == 1
+    if ref_axis_flag == 1
         ref_stored = zc_ref;    % store last reference axis value
     end
 
@@ -478,7 +476,7 @@ for branch = 1 : max_branches
     zc_plot_stack = [zc_plot_stack; zc_plot];
     u_AOCS_stack = [u_AOCS_stack; u_AOCS];
 
-    % Attitude Visualization
+    % In-Step Visualization
     if debug
 
         close all
@@ -487,18 +485,6 @@ for branch = 1 : max_branches
 
         figure('Name', strcat("Branch ", string(branch), " - Natural Trajectory"))
         DrawTrajLVLH3D(TCC_rt(:, 7:9)*DU);
-
-        % figure('name', strcat("Branch ", string(branch), " - Natural Control Components"))
-        % u1 = plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
-        % hold on
-        % u2 = plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
-        % u3 = plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
-        % ulim = plot((tspan_ctrl-t0)*TU*sec2hrs, u_limit*ones(length(tspan_ctrl), 1), 'r--', 'LineWidth', 1.2);
-        % xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        % ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-        % title('Control Components')
-        % grid on
-        % legend([u1, u2, u3, ulim], '$u_r$', '$u_{\theta}$', '$u_h$', '$u_{max}$','Location', 'southeast', 'Fontsize', 12, 'Interpreter','latex');
 
         figure('name', strcat("Branch ", string(branch), " - Trajectory"))
         for k = 1 : length(indices_ctrl) - 1
@@ -541,7 +527,6 @@ for branch = 1 : max_branches
         legend('q_{e0}', 'q_{e1}', 'q_{e2}', 'q_{e3}', 'fontsize', 10, 'location', 'best')
         grid on
 
-
         figure('name', strcat("Branch ", string(branch), " - Natural vs AOCS Control Components"))
         subplot(1, 3, 1)
         plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
@@ -567,7 +552,6 @@ for branch = 1 : max_branches
         ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
         legend('$u_{h, ideal}$', '$u_{h, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
         grid on
-
 
         % figure('name', strcat("Branch ", string(branch), " - xc"))
         % plot((tspan_ctrl-t0)*TU*sec2hrs, xc_plot_stack(:, 1), 'LineWidth', 1.5)
@@ -599,7 +583,6 @@ for branch = 1 : max_branches
         % legend('z_{c1}', 'z_{c2}', 'z_{c3}', 'fontsize', 10, 'location', 'best')
         % grid on
 
-
         % figure('name', strcat("Branch ", string(branch), " - Body and Wheels Angular Velocity"))
         % subplot(1, 2, 1)
         % plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 18)/TU, 'LineWidth', 1.5)
@@ -621,7 +604,7 @@ for branch = 1 : max_branches
         % legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
         % grid on
         
-        pause
+        % pause
 
     end    
 
@@ -644,7 +627,7 @@ x7f = Y_ctrl(end, 13);
 
 save('Data/attitude.mat');
 
-return
+
 %% Final Natural Drift
 
 % Define Forward Drift Propagation Parameters
@@ -1035,11 +1018,11 @@ grid on
 
 figure('name', "Finals - Body and Commanded Attitude")
 subplot(1, 2, 1)
-plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 1), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 14), 'LineWidth', 1.5)
 hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 2), 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 3), 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, Xb_stack(:, 4), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 15), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 16), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 17), 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
 legend('q_{b0}', 'q_{b1}', 'q_{b2}', 'q_{b3}', 'fontsize', 10, 'location', 'best')
@@ -1070,20 +1053,20 @@ grid on
 
 figure('name', "Finals - Body and Wheels Angular Velocity")
 subplot(1, 2, 1)
-plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 1)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 18)/TU, 'LineWidth', 1.5)
 hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 2)/TU, 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, w_stack(:, 3)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 19)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 20)/TU, 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
 grid on
 subplot(1, 2, 2)
-plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 1)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 21)/TU, 'LineWidth', 1.5)
 hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 2)/TU, 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 3)/TU, 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, omegas_stack(:, 4)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 22)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 23)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 24)/TU, 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')

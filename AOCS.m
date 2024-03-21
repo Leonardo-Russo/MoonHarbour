@@ -176,7 +176,8 @@ xb_dot = [qb0_dot; qb_dot];
 R_B2N = q2C(qb0, qb)';
 xb_MCI = R_B2N(:, 1);
 xb_LVLH = R_MCI2LVLHt * xb_MCI;
-u = un_norm * xb_LVLH;
+% u = un_norm * xb_LVLH;
+u = un_hat * un_norm;
 
 
 % ---------- Assign State Derivatives ---------- %
