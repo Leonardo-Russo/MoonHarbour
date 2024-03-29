@@ -1,6 +1,6 @@
 function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, xb_LVLH] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, clock)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, clock, is_col)
 
 % -------------------- Orbital Control -------------------- %
 
@@ -12,8 +12,13 @@ global pbar
 dY = zeros(24, 1); 
     
 % Retrieve Data from Input
-MEEt = Y(1:6);
-RHO_LVLH = Y(7:12);
+if is_col
+    MEEt = Y(1:6);
+    RHO_LVLH = Y(7:12);
+else
+    MEEt = Y(1:6)';
+    RHO_LVLH = Y(7:12)';
+end
 x7 = Y(13);
 
 % Retrieve RHO State Variables
@@ -110,9 +115,15 @@ x7_dot = - x7*norm(un_norm)/c;
 % -------------------- Attitude Control -------------------- %
 
 % Retrieve Attitude State Variables
-Xb = Y(14:17);
-w = Y(18:20);
-omegas = Y(21:24);
+if is_col
+    Xb = Y(14:17);
+    w = Y(18:20);
+    omegas = Y(21:24);
+else
+    Xb = Y(14:17)';
+    w = Y(18:20)';
+    omegas = Y(21:24)';
+end
 
 qb0 = Xb(1);
 qb = Xb(2:4);
@@ -123,11 +134,8 @@ Jc = [900, 50, -100;...
       -100, 150, 1250]*1e-6/DU^2;       % (kg) m^2
 
 % Gain Parameters
+% omega_n = 0.1*TU;     % rad/s
 omega_n = 0.1*TU;     % rad/s
-% omega_n = 0.05*TU;     % rad/s
-% omega_n = 1*TU;
-% omega_n = 10;
-% omega_n = 100;
 xi = 1;
 c1 = 2 * omega_n^2;
 c2 = 2*xi*omega_n/c1;
@@ -170,8 +178,10 @@ Tc = skew(w)*Jc*w - Mc + Jc*wc_dot - Jc*invA*B*wd - sign_qe0_0*Jc*invA*qe;
 
 
 % Compute Attitude State Derivatives
-omegas_dot = -A' * inv(A * A') * Tc;
-w_dot = inv(Jc) * (Mc - skew(w)*Jc*w - skew(w)*A*omegas - A*omegas_dot);
+% omegas_dot = -A' * inv(A * A') * Tc;
+% w_dot = inv(Jc) * (Mc - skew(w)*Jc*w - skew(w)*A*omegas - A*omegas_dot);
+omegas_dot = -A' / (A * A') * Tc;
+w_dot = Jc \ (Mc - skew(w)*Jc*w - skew(w)*A*omegas - A*omegas_dot);
 qb0_dot = -0.5 * w' * qb;
 qb_dot = -0.5 * skew(w) * qb + 0.5 * qb0 * w;
 xb_dot = [qb0_dot; qb_dot];

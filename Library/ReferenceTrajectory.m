@@ -70,8 +70,8 @@ M = 1000;   % n° of points for sample tspan
 tspan_check = linspace(t0, tf, M)';
 dist = zeros(M, 1);
 
-sphere_radius = 10e-3/DU;           % 10m of emergency sphere radius
-emergency_radius = 8e-3/DU;
+sphere_radius = 15e-3/DU;           % 11m of emergency sphere radius
+emergency_radius = 10e-3/DU;
 
 % Check for Emergency Sphere Intersection
 collision = 0;    
@@ -86,7 +86,7 @@ end
 % Three Via Points Method
 if collision
 
-    fprintf('\nSwitching to 3 Via Points Method.\n')
+    fprintf('Switching to 3 Via Points Method.\n')
 
     % Compute MidTime
     [~, min_idx] = min(dist);
