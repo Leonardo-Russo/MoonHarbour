@@ -256,6 +256,7 @@ Tc_AOCS_stack = [];
 xb_AOCS_stack = [];
 u_rt_norm_stack = [];
 u_AOCS_norm_stack = [];
+TCC_PPs_stack = [];
 
 % Set Null Misalignment
 misalignment = define_misalignment_error("null");
@@ -289,7 +290,7 @@ Y0_rt = [TCC_rt0; Xb0; w_0; omegas_0];     % AOCS extended State
 
 
 % temporary stuff
-debug = 1;
+debug = 0;
 opt.initially_aligned = true;
 
 
@@ -300,10 +301,8 @@ for branch = 1 : max_branches
 
     TCC_rt0 = Y0_rt(1:13);
 
-    % if branch == 1
     % Set the Via Points and Interpolate the Reference Terminal Trajectory
     [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1]);
-    % end
 
     % Set Final Propagation Time and Define timespan
     if length(t_viapoints_rt) >= 3
@@ -323,6 +322,9 @@ for branch = 1 : max_branches
     [~, TCC_rt] = ode113(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
         muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, misalignment, 0, 1), ...
         tspan_rt, TCC_rt0, optODE_rt); 
+
+    % Interpolate Trajectory
+    TCC_PPs = get_statePP(tspan_rt, TCC_rt);
 
 
     % ----- Retrieve Commanded Attitude ----- %
@@ -435,12 +437,12 @@ for branch = 1 : max_branches
     
     % % Perform the Attitude Propagation - ode113
     % [tspan_AOCS, Y_AOCS] = ode113(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
-    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 1), ...
+    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 1), ...
     %     tspan_AOCS, Y0_rt, optODE_AOCS);
     
     % Perform the Attitude Propagation - odeHam
     [tspan_AOCS, Y_AOCS] = odeHamHPC(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 0), ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 0), ...
         [t0_AOCS, tf_AOCS], Y0_rt, length(tspan_AOCS)-1);
     
     % Retrieve Attitude Evolution
@@ -461,7 +463,7 @@ for branch = 1 : max_branches
 
         % AOCS Reconstruction
         [~, ~, ~, ~, u_AOCS(j, :), ~, ~, ~, ~, Tc_AOCS(j, :), xb_AOCS(j, :)] = AOCS(tspan_AOCS(j), Y_AOCS(j, :)', EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, 0, 1);
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, 0, 1);
 
         % Attitude Reconstruction
         Q_N2C_AOCS(j, :) = ppsval(Q_N2C_PPs_rt, tspan_AOCS(j));
@@ -498,6 +500,7 @@ for branch = 1 : max_branches
     tspan_ctrl = [tspan_ctrl; tspan_AOCS];
     Y_ctrl = [Y_ctrl; Y_AOCS];
     RHOdPPsLVLH_T = [RHOdPPsLVLH_T, RHOdPPsLVLH_rt];
+    TCC_PPs_stack = [TCC_PPs_stack, TCC_PPs];
     indices_ctrl = [indices_ctrl; M_AOCS];
     Q_N2C_AOCS_stack = [Q_N2C_AOCS_stack; Q_N2C_AOCS];
     Qe_AOCS_stack = [Qe_AOCS_stack; Qe_AOCS];
@@ -840,7 +843,7 @@ for i = 1 : size(RHO_LVLH, 1)
         % AOCS Reconstruction
         [~, ~, ~, ~, u_AOCS(s, :), ~, ~, ~, ~, Tc(s, :), ~] = ...
             AOCS(tspan_ctrl(s), Y_ctrl(s, :)', EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T(:, k), kp, DU, TU, omega_cPPs_rt_stack(:, k), omegadot_cPPs_rt_stack(:, k), Q_N2C_PPs_rt_stack(:, k), sign_qe0_0_stack(k), misalignment, 0, 1);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T(:, k), kp, DU, TU, TCC_PPs_stack(:, k), omega_cPPs_rt_stack(:, k), omegadot_cPPs_rt_stack(:, k), Q_N2C_PPs_rt_stack(:, k), sign_qe0_0_stack(k), misalignment, 0, 1);
 
         kp_store(i) = kp;
         u_norms(i) = norm(u(i, :));

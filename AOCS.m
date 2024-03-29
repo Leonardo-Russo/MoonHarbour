@@ -1,6 +1,6 @@
 function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, xb_LVLH] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, clock, is_col)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, clock, is_col)
 
 % -------------------- Orbital Control -------------------- %
 
@@ -11,15 +11,11 @@ global pbar
 % Initialize State Derivative
 dY = zeros(24, 1); 
     
-% Retrieve Data from Input
-if is_col
-    MEEt = Y(1:6);
-    RHO_LVLH = Y(7:12);
-else
-    MEEt = Y(1:6)';
-    RHO_LVLH = Y(7:12)';
-end
-x7 = Y(13);
+% Retrieve Data from Interpolated State
+TCC = ppsval(TCC_PPs, t);
+MEEt = TCC(1:6);
+RHO_LVLH = TCC(7:12);
+x7 = TCC(13);
 
 % Retrieve RHO State Variables
 rho_LVLH = RHO_LVLH(1:3);
@@ -134,7 +130,6 @@ Jc = [900, 50, -100;...
       -100, 150, 1250]*1e-6/DU^2;       % (kg) m^2
 
 % Gain Parameters
-% omega_n = 0.1*TU;     % rad/s
 omega_n = 0.1*TU;     % rad/s
 xi = 1;
 c1 = 2 * omega_n^2;
@@ -178,8 +173,6 @@ Tc = skew(w)*Jc*w - Mc + Jc*wc_dot - Jc*invA*B*wd - sign_qe0_0*Jc*invA*qe;
 
 
 % Compute Attitude State Derivatives
-% omegas_dot = -A' * inv(A * A') * Tc;
-% w_dot = inv(Jc) * (Mc - skew(w)*Jc*w - skew(w)*A*omegas - A*omegas_dot);
 omegas_dot = -A' / (A * A') * Tc;
 w_dot = Jc \ (Mc - skew(w)*Jc*w - skew(w)*A*omegas - A*omegas_dot);
 qb0_dot = -0.5 * w' * qb;

@@ -70,7 +70,7 @@ M = 1000;   % n° of points for sample tspan
 tspan_check = linspace(t0, tf, M)';
 dist = zeros(M, 1);
 
-sphere_radius = 15e-3/DU;           % 11m of emergency sphere radius
+sphere_radius = 12e-3/DU;           % 11m of emergency sphere radius
 emergency_radius = 10e-3/DU;
 
 % Check for Emergency Sphere Intersection
