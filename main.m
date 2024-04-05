@@ -1,5 +1,7 @@
 %% Moon Harbour Project - Leonardo Russo
 
+% TODO: adimensionalize wrt mass introducing MU.
+
 close all
 clear
 clc
@@ -32,7 +34,7 @@ tic
 %% Hyperparameters and Settings
 
 % Define Global Variables
-global DU TU Rm muM pbar log
+global DU TU MU Rm muM pbar log
 
 % Define Constants
 DU = 1738;                                              % km
@@ -46,6 +48,7 @@ psiM = deg2rad(-81.7 + 360/18.6 * (5 + 4.5/12));        % rad
 deltaM = deg2rad(1.5);                                  % rad
 Dsol = 86400;                                           % s
 sec2hrs = 1/3600;                                       % hrs
+MU = 1/DU^2;
 
 % Define Time Domain
 date0 = datetime('2025-05-23 9:56:10');
@@ -262,8 +265,8 @@ TCC_PPs_stack = [];
 misalignment = define_misalignment_error("null");
 
 % Define Propagation Settings
-dt_regen = 60*60/TU;             % renegerative propagation interval
-dt_min = 5*60/TU;               % minimum propagation interval
+dt_regen = 5*60/TU;             % renegerative propagation interval
+dt_min = 1*60/TU;               % minimum propagation interval
 prop_step = 1/TU;               % propagation time step
 max_branches = 500;             % maximum n° of branches of the regenerative trajectory
 optODE_rt = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
@@ -294,6 +297,20 @@ debug = 0;
 opt.initially_aligned = true;
 
 
+% % Reference Trajectory Stuff
+% n_viapoints = ceil((t0_backdrift-t0_rt)/dt_regen);
+% tspan_adaptive = [t0_rt];
+% for k = 1 : n_viapoints
+% 
+%     if t0_backdrift - tspan_adaptive(end) > dt_regen
+% 
+%         tspan_adaptive(k+1) = tspan_adaptive(end) + dt_regen;
+% 
+%     end
+% 
+% end
+
+
 for branch = 1 : max_branches
 
 
@@ -302,7 +319,11 @@ for branch = 1 : max_branches
     TCC_rt0 = Y0_rt(1:13);
 
     % Set the Via Points and Interpolate the Reference Terminal Trajectory
-    [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1]);
+    if branch == 1
+        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt, rho1_0, t1_0, l_hat_0] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1]);
+    else
+        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], rho1_0, t1_0, l_hat_0);
+    end
 
     % Set Final Propagation Time and Define timespan
     if length(t_viapoints_rt) >= 3
@@ -435,15 +456,15 @@ for branch = 1 : max_branches
     qb_0 = Y0_rt(15:17);
     sign_qe0_0 = sign(qc0_0*qb0_0 + qc_0'*qb_0);        % needed for short rotation
     
-    % Perform the Attitude Propagation - ode113
-    [tspan_AOCS, Y_AOCS] = ode113(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 1), ...
-        tspan_AOCS, Y0_rt, optODE_AOCS);
+    % % Perform the Attitude Propagation - ode113
+    % [tspan_AOCS, Y_AOCS] = ode113(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
+    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 1), ...
+    %     tspan_AOCS, Y0_rt, optODE_AOCS);
     
-    % % Perform the Attitude Propagation - odeHam
-    % [tspan_AOCS, Y_AOCS] = odeHamHPC(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
-    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 0), ...
-    %     [t0_AOCS, tf_AOCS], Y0_rt, length(tspan_AOCS)-1);
+    % Perform the Attitude Propagation - odeHam
+    [tspan_AOCS, Y_AOCS] = odeHamHPC(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 0), ...
+        [t0_AOCS, tf_AOCS], Y0_rt, length(tspan_AOCS)-1);
     
     % Retrieve Attitude Evolution
     Xb = Y_AOCS(:, 14:17);
@@ -463,7 +484,7 @@ for branch = 1 : max_branches
 
         % AOCS Reconstruction
         [~, ~, ~, ~, u_AOCS(j, :), ~, ~, ~, ~, Tc_AOCS(j, :), xb_AOCS(j, :)] = AOCS(tspan_AOCS(j), Y_AOCS(j, :)', EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, 0, 1);
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, 0, 1);
 
         % Attitude Reconstruction
         Q_N2C_AOCS(j, :) = ppsval(Q_N2C_PPs_rt, tspan_AOCS(j));
@@ -620,10 +641,10 @@ for branch = 1 : max_branches
 
 
         figure('name', strcat("Branch ", string(branch), " - Tc"))
-        plot((tspan_ctrl-t0)*TU*sec2hrs, Tc_AOCS_stack(:, 1)*1e6*DU^2/TU^2, 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Tc_AOCS_stack(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
         hold on
-        plot((tspan_ctrl-t0)*TU*sec2hrs, Tc_AOCS_stack(:, 2)*1e6*DU^2/TU^2, 'LineWidth', 1.5)
-        plot((tspan_ctrl-t0)*TU*sec2hrs, Tc_AOCS_stack(:, 3)*1e6*DU^2/TU^2, 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Tc_AOCS_stack(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        plot((tspan_ctrl-t0)*TU*sec2hrs, Tc_AOCS_stack(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
         xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$T_{c,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
         legend('T_{c1}', 'T_{c2}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
@@ -638,16 +659,6 @@ for branch = 1 : max_branches
         xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$x_{b,i}$', 'interpreter', 'latex', 'fontsize', 12)
         legend('x_{b1}', 'x_{b2}', 'x_{b3}', 'fontsize', 10, 'location', 'best')
-        grid on
-        
-
-        figure('name', strcat("Branch ", string(branch), " - Thrust Norms"))
-        plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_norm_stack*1000*DU/TU^2, 'LineWidth', 1.5)
-        hold on
-        plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_norm_stack*1000*DU/TU^2, 'LineWidth', 1.5)
-        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        ylabel('$|u| \, [m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-        legend('traj', 'aocs', 'fontsize', 10, 'location', 'best')
         grid on
         
 
@@ -702,6 +713,15 @@ for branch = 1 : max_branches
             xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
             ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
             legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
+            grid on
+
+            figure('name', strcat("Branch ", string(branch), " - Thrust Norms"))
+            plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_norm_stack*1000*DU/TU^2, 'LineWidth', 1.5)
+            hold on
+            plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_norm_stack*1000*DU/TU^2, 'LineWidth', 1.5)
+            xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+            ylabel('$|u| \, [m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+            legend('traj', 'aocs', 'fontsize', 10, 'location', 'best')
             grid on
 
         end
@@ -843,7 +863,7 @@ for i = 1 : size(RHO_LVLH, 1)
         % AOCS Reconstruction
         [~, ~, ~, ~, u_AOCS(s, :), ~, ~, ~, ~, Tc(s, :), ~] = ...
             AOCS(tspan_ctrl(s), Y_ctrl(s, :)', EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T(:, k), kp, DU, TU, TCC_PPs_stack(:, k), omega_cPPs_rt_stack(:, k), omegadot_cPPs_rt_stack(:, k), Q_N2C_PPs_rt_stack(:, k), sign_qe0_0_stack(k), misalignment, 0, 1);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T(:, k), kp, DU, TU, MU, TCC_PPs_stack(:, k), omega_cPPs_rt_stack(:, k), omegadot_cPPs_rt_stack(:, k), Q_N2C_PPs_rt_stack(:, k), sign_qe0_0_stack(k), misalignment, 0, 1);
 
         kp_store(i) = kp;
         u_norms(i) = norm(u(i, :));
@@ -1141,10 +1161,10 @@ grid on
 
 % Commanded Torque
 figure('name', 'Commanded Torque')
-plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 1)*1e6*DU^2/TU^2, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
 hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 2)*1e6*DU^2/TU^2, 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 3)*1e6*DU^2/TU^2, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$T_{c,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('T_{c1}', 'T_{c2}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
@@ -1207,6 +1227,65 @@ if opt.additional_plots
     grid on
 
 end
+
+
+figure('name', strcat("Branch ", string(branch), " - Natural vs AOCS Control Components"))
+subplot(1, 3, 1)
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('$u_{r, ideal}$', '$u_{r, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+grid on
+subplot(1, 3, 2)
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('$u_{\theta, ideal}$', '$u_{\theta, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+grid on
+subplot(1, 3, 3)
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('$u_{h, ideal}$', '$u_{h, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+grid on
+
+figure('name', strcat("Branch ", string(branch), " - omega_c"))
+plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 1)/TU, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 2)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 3)/TU, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\omega_{c,i} \ [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('\omega_{c1}', '\omega_{c2}', '\omega_{c3}', 'fontsize', 10, 'location', 'best')
+grid on
+
+
+figure('name', strcat("Branch ", string(branch), " - omega_c"))
+plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 1)/TU^2, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 2)/TU^2, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 3)/TU^2, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\dot{\omega}_{c,i} \ [rad/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('\omega_{c1}', '\omega_{c2}', '\omega_{c3}', 'fontsize', 10, 'location', 'best')
+grid on
+
+
+figure('name', strcat("Branch ", string(branch), " - xb_AOCS"))
+plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 1), 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 2), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 3), 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$x_{b,i}$', 'interpreter', 'latex', 'fontsize', 12)
+legend('x_{b1}', 'x_{b2}', 'x_{b3}', 'fontsize', 10, 'location', 'best')
+grid on
 
 
 %% Animations
