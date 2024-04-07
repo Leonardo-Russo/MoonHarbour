@@ -1,7 +1,5 @@
 %% Moon Harbour Project - Leonardo Russo
 
-% TODO: adimensionalize wrt mass introducing MU.
-
 close all
 clear
 clc
@@ -297,19 +295,6 @@ debug = 0;
 opt.initially_aligned = true;
 
 
-% % Reference Trajectory Stuff
-% n_viapoints = ceil((t0_backdrift-t0_rt)/dt_regen);
-% tspan_adaptive = [t0_rt];
-% for k = 1 : n_viapoints
-% 
-%     if t0_backdrift - tspan_adaptive(end) > dt_regen
-% 
-%         tspan_adaptive(k+1) = tspan_adaptive(end) + dt_regen;
-% 
-%     end
-% 
-% end
-
 
 for branch = 1 : max_branches
 
@@ -322,7 +307,8 @@ for branch = 1 : max_branches
     if branch == 1
         [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt, rho1_0, t1_0, l_hat_0] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1]);
     else
-        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], rho1_0, t1_0, l_hat_0);
+        % [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], rho1_0, t1_0, l_hat_0);
+        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], NaN, t1_0, NaN);
     end
 
     % Set Final Propagation Time and Define timespan

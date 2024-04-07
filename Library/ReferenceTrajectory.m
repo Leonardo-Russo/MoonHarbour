@@ -98,21 +98,24 @@ if collision
 
     fprintf('Switching to 3 Via Points Method.\n')
 
-    if isnan(rho_1) & isnan(t1) & isnan(l_hat)
-
-        % Compute MidTime
+    % Compute MidTime
+    if isnan(t1)
         [~, min_idx] = min(dist);
         t1 = tspan_check(min_idx);
-        
-        % Compute Auxiliary Reference Frame
+    end
+    
+    % Compute Auxiliary Reference Frame
+    if isnan(l_hat)
         l_hat = cross(rho_0, rho_f) / norm(cross(rho_0, rho_f));
-        lambda0_hat = cross(l_hat, rho_0)/norm(rho_0);
-        rho_0_hat = rho_0 / norm(rho_0);
-    
-        % Compute rho_1
-        xi = acos(sphere_radius/norm(rho_0));
+    end
+
+    lambda0_hat = cross(l_hat, rho_0)/norm(rho_0);
+    rho_0_hat = rho_0 / norm(rho_0);
+    xi = acos(sphere_radius/norm(rho_0));
+
+    % Compute rho_1
+    if isnan(rho_1)
         rho_1 = sphere_radius * (cos(xi)*rho_0_hat + sin(xi)*lambda0_hat);
-    
     end
 
     % Create Additional Via Point
@@ -131,6 +134,7 @@ if collision
         RHOrefPPs = TangentPPs;
         viapoints = [rho_r, rho_t, rho_h];
         tspan_viapoints = [t0, t1, tf]';
+        fprintf('rho1 = [%.4f\t%.4f\t%.4f]\n', rho_1*DU)
     end
 
 end
