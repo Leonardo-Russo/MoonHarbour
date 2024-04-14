@@ -19,6 +19,7 @@ opt.create_animation = false;
 opt.show_progress = false;
 opt.compute_target = false;
 opt.additional_plots = false;
+opt.showgui = false;
 opt.N = 1000;                   % n° of points for the Interpolation
 opt.RelTolODE = 1e-7;           % options for ode()
 opt.AbsTolODE = 1e-6;
@@ -305,9 +306,8 @@ for branch = 1 : max_branches
 
     % Set the Via Points and Interpolate the Reference Terminal Trajectory
     if branch == 1
-        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt, rho1_0, t1_0, l_hat_0] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1]);
+        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt, ~, t1_0, ~] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1]);
     else
-        % [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], rho1_0, t1_0, l_hat_0);
         [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], NaN, t1_0, NaN);
     end
 
@@ -388,12 +388,18 @@ for branch = 1 : max_branches
     
         R_N2C(:, :, i) = [xc_MCI(i, :)', yc_MCI(i, :)', zc_MCI(i, :)']';
         
-        if branch == 1 && i == 1
-            signvect = [1 1 1 1]';
-            [q0c, qc] = matrixToQuat(R_N2C(:, :, i));
+        if i == 1
+            if branch == 1
+                signvect = [1 1 1 1]';
+                [q0c, qc] = matrixToQuat(R_N2C(:, :, i));
+            else
+                signvect = sign(Q_N2C_AOCS_stack(end, :))';
+                [q0c, qc] = matrixToQuat(R_N2C(:, :, i));
+            end
         else
-            [q0c, qc] = matrixToQuat(R_N2C(:, :, i));            
+            [q0c, qc] = matrixToQuat(R_N2C(:, :, i)); 
         end
+
         Q_N2C(i, :) = [q0c, qc'];
 
     end
@@ -427,6 +433,10 @@ for branch = 1 : max_branches
     % Define Time Domain
     t0_AOCS = t0_rt;
     tf_AOCS = min(t0_rt + dt_regen, tf_rt);
+    branch_squish_tol = 30/TU;  % 30 s
+    if tf_rt - tf_AOCS < branch_squish_tol
+        tf_AOCS = tf_rt;
+    end
     tspan_AOCS = [t0_AOCS : prop_step : tf_AOCS]';
     
     qc0_0 = Q_N2C(1, 1);
@@ -527,12 +537,14 @@ for branch = 1 : max_branches
     u_rt_norm_stack = [u_rt_norm_stack; u_rt_norm];
     u_AOCS_norm_stack = [u_AOCS_norm_stack; u_AOCS_norm];
 
+    fprintf('Propagating from t0 = %.4f min to tf = %.4f min\n', ([t0_AOCS, tf_AOCS]-t0)*TU/60)
+
     % In-Step Visualization
-    if debug
+    if debug && branch >= 6
 
         close all
 
-        fprintf('Propagating from t0 = %.4f min to tf = %.4f min\n', ([t0_AOCS, tf_AOCS]-t0)*TU/60)
+        % fprintf('Propagating from t0 = %.4f min to tf = %.4f min\n', ([t0_AOCS, tf_AOCS]-t0)*TU/60)
 
         figure('Name', strcat("Branch ", string(branch), " - Natural Trajectory"))
         DrawTrajLVLH3D(TCC_rt(:, 7:9)*DU);
@@ -712,7 +724,7 @@ for branch = 1 : max_branches
 
         end
         
-        pause
+        % pause
 
     end    
 
@@ -906,24 +918,38 @@ clear
 load('Data/temp/Post-Processed Propagation.mat');
 clc
 
-% opt.savechoice = true;
 
-% % Create a GUI results window
-% fig = uifigure('Name', 'Simulation Results', 'Position', [100 100 600 400]);
-% lblRuntime = uilabel(fig, 'Text', sprintf('Total Runtime: %.1f s.', runtime), 'Position', [20 370 560 20]);
-% desState = [RHOf_LVLH(1:3)'*DU*1e3, RHOf_LVLH(4:6)'*DU/TU*1e3];
-% finalState = [TC_drift(end, 7:9)*DU*1e3, TC_drift(end, 10:12)*DU/TU*1e3];
-% deltaState = desState-finalState;
-% VarNames = {'rho (m)', 'theta (m)', 'h (m)', 'v_rho (m/s)', 'v_theta (m/s)', 'v_h (m/s)'};
-% DesRhoState = array2table(desState, 'VariableNames', VarNames, 'RowNames', {'Desired State'});
-% FinalRhoState = array2table(finalState, 'VariableNames', VarNames, 'RowNames', {'Final State'});
-% DeltaRhoState = array2table(deltaState, 'VariableNames', VarNames, 'RowNames', {'Delta State'});
-% ResultsTable = [DesRhoState; FinalRhoState; DeltaRhoState];
-% ResultsCellArray = [ResultsTable.Properties.RowNames, table2cell(ResultsTable)];
-% t = uitable(fig, 'Data', ResultsCellArray, 'Position', [20 50 560 300]);
-% t.ColumnName = [' ', VarNames];
-% t.RowName = {};
-% t.ColumnWidth = 'auto';
+opt.saveplots = true;
+opt.showgui = false;
+
+try
+    close(results_gui)
+catch
+    % pass
+end
+
+
+% Create a GUI results window
+if opt.showgui
+    results_gui = uifigure('Name', 'Simulation Results', 'Position', [100 100 600 400]);
+    lblRuntime = uilabel(results_gui, 'Text', sprintf('Total Runtime: %.1f s.', runtime), 'Position', [20 370 560 20]);
+    desState = [RHOf_LVLH(1:3)'*DU*1e3, RHOf_LVLH(4:6)'*DU/TU*1e3];
+    finalState = [TC_drift(end, 7:9)*DU*1e3, TC_drift(end, 10:12)*DU/TU*1e3];
+    deltaState = desState-finalState;
+    VarNames = {'rho (m)', 'theta (m)', 'h (m)', 'v_rho (m/s)', 'v_theta (m/s)', 'v_h (m/s)'};
+    DesRhoState = array2table(desState, 'VariableNames', VarNames, 'RowNames', {'Desired State'});
+    FinalRhoState = array2table(finalState, 'VariableNames', VarNames, 'RowNames', {'Final State'});
+    DeltaRhoState = array2table(deltaState, 'VariableNames', VarNames, 'RowNames', {'Delta State'});
+    ResultsTable = [DesRhoState; FinalRhoState; DeltaRhoState];
+    ResultsCellArray = [ResultsTable.Properties.RowNames, table2cell(ResultsTable)];
+    t = uitable(results_gui, 'Data', ResultsCellArray, 'Position', [20 50 560 300]);
+    t.ColumnName = [' ', VarNames];
+    t.RowName = {};
+    t.ColumnWidth = 'auto';
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Numerical Results.jpg'))
+    end
+end
 
 % Show Numerical Results
 fprintf('Total Runtime: %.1f s.\n', runtime)
@@ -947,7 +973,7 @@ title('Terminal Chaser LVLH Trajectory')
 % legend([C_LVLH_T, Cd_LVLH_T, vp_T], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points'}, 'location', 'best')
 legend([C_LVLH_T, Cd_LVLH_T], {'Chaser Trajectory', 'Reference Trajectory'}, 'location', 'best')
 if opt.saveplots
-    saveas(gcf, strcat('Output/Trajectory Terminal LVLH.jpg'))
+    saveas(gcf, strcat('Output/Plots/Trajectory Terminal LVLH.jpg'))
 end
 
 
@@ -1002,7 +1028,7 @@ ylabel('$\dot{\rho}_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
 grid on
 if opt.saveplots
-    saveas(gcf, strcat('Output/State LVLH Components.jpg'))
+    saveas(gcf, strcat('Output/Plots/State LVLH Components.jpg'))
 end
 
 
@@ -1021,7 +1047,7 @@ ylabel('$|v| \ [km/s]$', 'interpreter', 'latex', 'fontsize', 12)
 title('Relative Velocity')
 grid on
 if opt.saveplots
-    saveas(gcf, strcat('Output/Relative Distance and Velocity.jpg'))
+    saveas(gcf, strcat('Output/Plots/Relative Distance and Velocity.jpg'))
 end
 
 
@@ -1049,7 +1075,7 @@ ylim([-u_limit(1)/2, u_limit(1)/2]);
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
 if opt.saveplots
-    saveas(gcf, strcat('Output/Control Norm.jpg'))
+    saveas(gcf, strcat('Output/Plots/Control Norm.jpg'))
 end
 
 
@@ -1081,7 +1107,7 @@ ylim([-u_limit(1)/2, u_limit(1)/2]);
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
 if opt.saveplots
-    saveas(gcf, strcat('Output/Control Components.jpg'))
+    saveas(gcf, strcat('Output/Plots/Control Components.jpg'))
 end
 
 
@@ -1106,7 +1132,10 @@ plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C_AOCS_stack(:, 4), 'LineWidth', 1.5)
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
 legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
-grid on        
+grid on  
+if opt.saveplots
+    saveas(gcf, strcat('Output/Plots/Body and Commanded Quaternions.jpg'))
+end
 
 
 % Error Quaternions
@@ -1120,6 +1149,9 @@ xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
 legend('q_{e0}', 'q_{e1}', 'q_{e2}', 'q_{e3}', 'fontsize', 10, 'location', 'best')
 grid on
+if opt.saveplots
+    saveas(gcf, strcat('Output/Plots/Error Quaternions.jpg'))
+end
 
 
 % Body and Wheels Angular Velocities
@@ -1143,6 +1175,9 @@ xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
 grid on
+if opt.saveplots
+    saveas(gcf, strcat('Output/Plots/Body and Wheels Angular Velocities.jpg'))
+end
 
 
 % Commanded Torque
@@ -1155,6 +1190,85 @@ xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$T_{c,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('T_{c1}', 'T_{c2}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
 grid on
+if opt.saveplots
+    saveas(gcf, strcat('Output/Plots/Commanded Torque.jpg'))
+end
+
+
+% Natural vs AOCS Control Components
+figure('name', "Natural vs AOCS Control Components")
+subplot(1, 3, 1)
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('$u_{r, ideal}$', '$u_{r, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+grid on
+subplot(1, 3, 2)
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('$u_{\theta, ideal}$', '$u_{\theta, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+grid on
+subplot(1, 3, 3)
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('$u_{h, ideal}$', '$u_{h, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+grid on
+if opt.saveplots
+    saveas(gcf, strcat('Output/Plots/Natural vs AOCS Control Components.jpg'))
+end
+
+
+% Commanded Angular Velocities
+figure('name', "Commanded Angular Velocities")
+plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 1)/TU, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 2)/TU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 3)/TU, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\omega_{c,i} \ [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('\omega_{c1}', '\omega_{c2}', '\omega_{c3}', 'fontsize', 10, 'location', 'best')
+grid on
+if opt.saveplots
+    saveas(gcf, strcat('Output/Plots/Commanded Angular Velocities.jpg'))
+end
+
+
+% Commanded Angular Accelerations
+figure('name', "Commanded Angular Accelerations")
+plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 1)/TU^2, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 2)/TU^2, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 3)/TU^2, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$\dot{\omega}_{c,i} \ [rad/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('\omega_{c1}', '\omega_{c2}', '\omega_{c3}', 'fontsize', 10, 'location', 'best')
+grid on
+if opt.saveplots
+    saveas(gcf, strcat('Output/Plots/Commanded Angular Accelerations.jpg'))
+end
+
+
+% Thrust Direction Components - xb
+figure('name', "Body Thrust Direction Components")
+plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 1), 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 2), 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 3), 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$x_{b,i}$', 'interpreter', 'latex', 'fontsize', 12)
+legend('x_{b1}', 'x_{b2}', 'x_{b3}', 'fontsize', 10, 'location', 'best')
+grid on
+if opt.saveplots
+    saveas(gcf, strcat('Output/Plots/Body Thrust Direction Components.jpg'))
+end
 
 
 if opt.additional_plots
@@ -1213,108 +1327,4 @@ if opt.additional_plots
     grid on
 
 end
-
-
-figure('name', strcat("Branch ", string(branch), " - Natural vs AOCS Control Components"))
-subplot(1, 3, 1)
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('$u_{r, ideal}$', '$u_{r, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
-grid on
-subplot(1, 3, 2)
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('$u_{\theta, ideal}$', '$u_{\theta, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
-grid on
-subplot(1, 3, 3)
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('$u_{h, ideal}$', '$u_{h, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
-grid on
-
-figure('name', strcat("Branch ", string(branch), " - omega_c"))
-plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 1)/TU, 'LineWidth', 1.5)
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 2)/TU, 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 3)/TU, 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$\omega_{c,i} \ [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('\omega_{c1}', '\omega_{c2}', '\omega_{c3}', 'fontsize', 10, 'location', 'best')
-grid on
-
-
-figure('name', strcat("Branch ", string(branch), " - omega_c"))
-plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 1)/TU^2, 'LineWidth', 1.5)
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 2)/TU^2, 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 3)/TU^2, 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$\dot{\omega}_{c,i} \ [rad/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('\omega_{c1}', '\omega_{c2}', '\omega_{c3}', 'fontsize', 10, 'location', 'best')
-grid on
-
-
-figure('name', strcat("Branch ", string(branch), " - xb_AOCS"))
-plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 1), 'LineWidth', 1.5)
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 2), 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 3), 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$x_{b,i}$', 'interpreter', 'latex', 'fontsize', 12)
-legend('x_{b1}', 'x_{b2}', 'x_{b3}', 'fontsize', 10, 'location', 'best')
-grid on
-
-
-%% Animations
-
-show_attitude_animation = 0;
-
-if show_attitude_animation             % show attitude evolution
-    % close all
-    clc
-    branch_animation = 1;
-    top_index = sum(indices_ctrl(1:branch_animation+1))-1;
-    fps = 10;
-    for k = 1 : M_ctrl
-        Tc = eye(4);
-        Tb = eye(4);
-        Tc(1:3, 1:3) = q2C(Q_N2C_AOCS_stack(k, 1), Q_N2C_AOCS_stack(k, 2:4)');       % rotation from MCI to Commanded
-        Tb(1:3, 1:3) = q2C(Xb_stack(k, 1), Xb_stack(k, 2:4)');                                  % rotation from MCI to Body
-        if k == 1
-            figure('Name', 'Attitude Evolution');
-            commanded = show_frame(Tc, '#349beb', 'C');
-            body = show_frame(Tb, '#fc9803', 'B');
-            N = show_frame(eye(4), '#000000', 'MCI');
-            axis([-1, 1, -1, 1, -1, 1])
-            grid on
-            fprintf('Branch: %d\n', branch_animation);
-        else
-            if k > top_index
-                branch_animation = branch_animation + 1;
-                top_index = sum(indices_ctrl(1:branch_animation+1))-1;
-                fprintf('Branch: %d\n', branch_animation);
-            end
-            if rem(k, fps) == 0
-                update_frame(commanded, Tc);
-                update_frame(body, Tb);
-            end
-        end
-    end
-end
-
-
-
-% if opt.create_animation
-%     figure('name', 'Rendezvous and Docking Animation', 'WindowState', 'maximized')
-%     DrawRendezvous(Xt_MCI(:, 1:3)*DU, Xc_MCI(:, 1:3)*DU, RHO_LVLH, bookmark, opt)
-% end
 

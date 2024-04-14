@@ -130,7 +130,8 @@ Jc = [900, 50, -100;...
       -100, 150, 1250]*1e-6/(DU^2*MU);       % (kg) m^2
 
 % Gain Parameters
-omega_n = 0.1*TU;     % rad/s
+omega_n = 0.1*TU;       % rad/s
+omega_n = 0.05*TU;      
 xi = 1;
 c1 = 2 * omega_n^2;
 c2 = 2*xi*omega_n/c1;
