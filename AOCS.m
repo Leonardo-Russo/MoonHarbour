@@ -1,12 +1,15 @@
 function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, xb_LVLH] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, MU, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, clock, is_col)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, clock, is_col)
 
 % -------------------- Orbital Control -------------------- %
 
 % ----- Natural Relative Motion ----- %
 
 global pbar
+
+% Define Attitude Saturation Torque
+Tc_max = 1/(1e6*DU^2/TU^2*MU);      % 1 Nm
 
 % Initialize State Derivative
 dY = zeros(24, 1); 
@@ -130,8 +133,8 @@ Jc = [900, 50, -100;...
       -100, 150, 1250]*1e-6/(DU^2*MU);       % (kg) m^2
 
 % Gain Parameters
-omega_n = 0.1*TU;       % rad/s
-omega_n = 0.05*TU;      
+% omega_n = 0.1*TU;       % rad/s
+% omega_n = 0.05*TU;      
 xi = 1;
 c1 = 2 * omega_n^2;
 c2 = 2*xi*omega_n/c1;
@@ -168,6 +171,10 @@ Mc = 0;         % no external torques applied on the chaser
 
 % Compute Commanded Torque
 Tc = skew(w)*Jc*w - Mc + Jc*wc_dot - Jc*invA*B*wd - sign_qe0_0*Jc*invA*qe;
+
+if norm(Tc) > Tc_max
+    Tc = Tc_max * (Tc/norm(Tc));
+end
 
 
 % Compute Attitude State Derivatives

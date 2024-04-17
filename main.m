@@ -79,9 +79,6 @@ if opt.compute_target
     [X0t_MCI, COE0t, MEE0t, EarthPPsMCI, DSGPPsMCI, SunPPsMCI, MoonPPsECI, time, t0, tf, opt.N] = ...
         EphemerisHandlerExp(deltaE, psiM, deltaM, opt.N, date0, datef);
     
-    % Combine the Target and Chaser States into TC ~ [Target; Chaser] State
-    TC0 = [MEE0t; RHO0_LVLH];
-    
     % Define the timespan for the propagation
     tspan_ref = linspace(t0, tf, opt.N);
     dt_ref = tspan_ref(2) - tspan_ref(1);
@@ -110,11 +107,14 @@ if opt.compute_target
 
 else
 
-    load('Data/temp/Target Propagation.mat', 'X0t_MCI', 'COE0t', 'MEE0t', 'EarthPPsMCI', 'DSGPPsMCI', 'SunPPsMCI', 'MoonPPsECI', 'time', 't0', 'tf', 'TC0', 'tspan_ref', 'dt_ref', 'MEEt_ref', 'COEt_ref', 'Xt_MCI_ref', 'omegadotPPsLVLH');
+    load('Data/temp/Target Propagation.mat', 'X0t_MCI', 'COE0t', 'MEE0t', 'EarthPPsMCI', 'DSGPPsMCI', 'SunPPsMCI', 'MoonPPsECI', 'time', 't0', 'tf', 'tspan_ref', 'dt_ref', 'MEEt_ref', 'COEt_ref', 'Xt_MCI_ref', 'omegadotPPsLVLH');
 
 end
 
 %% Direct Approach: Chaser Backwards Propagation from Final Conditions
+
+% Combine the Target and Chaser States into TC ~ [Target; Chaser] State
+TC0 = [MEE0t; RHO0_LVLH];
 
 % Define Natural Drift Propagation Settings
 optODE_back = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_back(t, Y));
@@ -294,6 +294,7 @@ Y0_rt = [TCC_rt0; Xb0; w_0; omegas_0];     % AOCS extended State
 % temporary stuff
 debug = 0;
 opt.initially_aligned = true;
+omega_n = 0.05*TU;      % rad/s
 
 
 
@@ -454,12 +455,12 @@ for branch = 1 : max_branches
     
     % % Perform the Attitude Propagation - ode113
     % [tspan_AOCS, Y_AOCS] = ode113(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
-    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 1), ...
+    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 1), ...
     %     tspan_AOCS, Y0_rt, optODE_AOCS);
     
     % Perform the Attitude Propagation - odeHam
     [tspan_AOCS, Y_AOCS] = odeHamHPC(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 0), ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, opt.show_progress, 0), ...
         [t0_AOCS, tf_AOCS], Y0_rt, length(tspan_AOCS)-1);
     
     % Retrieve Attitude Evolution
@@ -480,7 +481,7 @@ for branch = 1 : max_branches
 
         % AOCS Reconstruction
         [~, ~, ~, ~, u_AOCS(j, :), ~, ~, ~, ~, Tc_AOCS(j, :), xb_AOCS(j, :)] = AOCS(tspan_AOCS(j), Y_AOCS(j, :)', EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, 0, 1);
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, 0, 1);
 
         % Attitude Reconstruction
         Q_N2C_AOCS(j, :) = ppsval(Q_N2C_PPs_rt, tspan_AOCS(j));
@@ -537,10 +538,10 @@ for branch = 1 : max_branches
     u_rt_norm_stack = [u_rt_norm_stack; u_rt_norm];
     u_AOCS_norm_stack = [u_AOCS_norm_stack; u_AOCS_norm];
 
-    fprintf('Propagating from t0 = %.4f min to tf = %.4f min\n', ([t0_AOCS, tf_AOCS]-t0)*TU/60)
+    fprintf('Branch %.0f: from t0 = %.4f min to tf = %.4f min\n', branch, ([t0_AOCS, tf_AOCS]-t0)*TU/60)
 
     % In-Step Visualization
-    if debug && branch >= 6
+    if debug
 
         close all
 
@@ -861,7 +862,7 @@ for i = 1 : size(RHO_LVLH, 1)
         % AOCS Reconstruction
         [~, ~, ~, ~, u_AOCS(s, :), ~, ~, ~, ~, Tc(s, :), ~] = ...
             AOCS(tspan_ctrl(s), Y_ctrl(s, :)', EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T(:, k), kp, DU, TU, MU, TCC_PPs_stack(:, k), omega_cPPs_rt_stack(:, k), omegadot_cPPs_rt_stack(:, k), Q_N2C_PPs_rt_stack(:, k), sign_qe0_0_stack(k), misalignment, 0, 1);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T(:, k), kp, omega_n, DU, TU, MU, TCC_PPs_stack(:, k), omega_cPPs_rt_stack(:, k), omegadot_cPPs_rt_stack(:, k), Q_N2C_PPs_rt_stack(:, k), sign_qe0_0_stack(k), misalignment, 0, 1);
 
         kp_store(i) = kp;
         u_norms(i) = norm(u(i, :));
@@ -919,8 +920,9 @@ load('Data/temp/Post-Processed Propagation.mat');
 clc
 
 
-opt.saveplots = true;
+opt.saveplots = false;
 opt.showgui = false;
+opt.additional_plots = true;
 
 try
     close(results_gui)
