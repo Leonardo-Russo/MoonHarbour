@@ -3,6 +3,7 @@ function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
     psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, misalignment, clock, is_col)
 
+
 % ----- Natural Relative Motion ----- %
 
 global pbar
@@ -11,6 +12,7 @@ global pbar
 dTCC = zeros(13, 1); 
     
 % Retrieve Data from Input
+
 if is_col
     MEEt = TCC(1:6);
     RHO_LVLH = TCC(7:12);

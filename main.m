@@ -873,7 +873,7 @@ for i = 1 : size(RHO_LVLH, 1)
         [~, ~, ~, ~, u(i, :), ~, ~, ~, f_norms(i), Tc(s, :), ~] = ...
             AOCS(tspan_ctrl(s), Y_ctrl(s, :)', EarthPPsMCI, SunPPsMCI, muM, ...
             muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T(:, k), kp, omega_n, DU, TU, MU, TCC_PPs_stack(:, k), omega_cPPs_rt_stack(:, k), omegadot_cPPs_rt_stack(:, k), Q_N2C_PPs_rt_stack(:, k), sign_qe0_0_stack(k), misalignment, 0, 1);
-
+            
         kp_store(i) = kp;
         u_norms(i) = norm(u(i, :));
         
