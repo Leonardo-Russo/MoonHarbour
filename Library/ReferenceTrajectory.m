@@ -1,4 +1,4 @@
-function [RHOrefPPs, viapoints, tspan_viapoints] = ReferenceTrajectory(TC0, TCf, t0, tf, BC)
+function [RHOrefPPs, viapoints, tspan_viapoints, rho_1, t1, l_hat] = ReferenceTrajectory(TC0, TCf, t0, tf, BC, rho_1, t1, l_hat)
 % Description: this function computes reference trajectory that should be followed by
 % the chaser during the approach to the target (rendezvous). This is
 % carried out in target LVLH frame, so we work with relative distances
@@ -17,8 +17,15 @@ function [RHOrefPPs, viapoints, tspan_viapoints] = ReferenceTrajectory(TC0, TCf,
 % t0 and tf must be nondimensional.
 % TU must be expressed in seconds.
 
-debug = 0;
-
+if nargin < 6
+    rho_1 = NaN;
+end
+if nargin < 7
+    t1 = NaN;
+end
+if nargin < 8
+    l_hat = NaN;
+end
 
 global DU
 
@@ -73,7 +80,8 @@ M = 1000;   % n° of points for sample tspan
 tspan_check = linspace(t0, tf, M)';
 dist = zeros(M, 1);
 
-emergency_radius = 10e-3/DU;          % 10m of emergency sphere radius
+sphere_radius = 10e-3/DU;           % 12m of emergency sphere radius
+emergency_radius = 10e-3/DU;
 
 % Check for Emergency Sphere Intersection
 collision = 0;    
@@ -88,50 +96,61 @@ end
 % Three Via Points Method
 if collision
 
-    fprintf('\nSwitching to 3 Via Points Method.\n')
+    % fprintf('Switching to 3 Via Points Method.\n')
 
     % Compute MidTime
-    [~, min_idx] = min(dist);
-    t1 = tspan_check(min_idx);
+    if isnan(t1)
+        [~, min_idx] = min(dist);
+        t1 = tspan_check(min_idx);
+    end
     
     % Compute Auxiliary Reference Frame
-    l_hat = cross(rho_0, rho_f) / norm(cross(rho_0, rho_f));
+    if isnan(l_hat)
+        l_hat = cross(rho_0, rho_f) / norm(cross(rho_0, rho_f));
+    end
+
     lambda0_hat = cross(l_hat, rho_0)/norm(rho_0);
     rho_0_hat = rho_0 / norm(rho_0);
+    xi = acos(sphere_radius/norm(rho_0));
 
     % Compute rho_1
-    xi = acos(emergency_radius/norm(rho_0));
-    rho_1 = emergency_radius * (cos(xi)*rho_0_hat + sin(xi)*lambda0_hat);
+    if isnan(rho_1)
+        rho_1 = sphere_radius * (cos(xi)*rho_0_hat + sin(xi)*lambda0_hat);
+    end
 
     % Create Additional Via Point
     rho_r1 = rho_1(1);
     rho_t1 = rho_1(2);
     rho_h1 = rho_1(3);
-    tspan_viapoints = [t0, t1, tf]';
     
     rho_r = [rho_r0, rho_r1, rho_rf]';
     rho_t = [rho_t0, rho_t1, rho_tf]';
     rho_h = [rho_h0, rho_h1, rho_hf]';
+
+    if t1 > t0
     
-    % Compute Reference Trajectory
-    RHOrefPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
-    viapoints = [rho_r, rho_t, rho_h];
+        % Compute Reference Trajectory
+        TangentPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
+    
+        if ~isempty(TangentPPs)
+            RHOrefPPs = TangentPPs;
+            viapoints = [rho_r, rho_t, rho_h];
+            tspan_viapoints = [t0, t1, tf]';
+        end
+
+    end
 
 end
 
-% Show the Reference Trajectory
-if debug
-    testPPs(RHOrefPPs, tspan_check);
-end
 
 % Compute the Reference Trajectory Velocity and Acceleration
 rhodot_rPPs = fnder(RHOrefPPs(1), 1);
 rhodot_tPPs = fnder(RHOrefPPs(2), 1);
 rhodot_hPPs = fnder(RHOrefPPs(3), 1);
-
 rhoddot_rPPs = fnder(rhodot_rPPs, 1);
 rhoddot_tPPs = fnder(rhodot_tPPs, 1);
 rhoddot_hPPs = fnder(rhodot_hPPs, 1);
+
 RHOrefPPs = [RHOrefPPs; rhodot_rPPs; rhodot_tPPs; rhodot_hPPs; rhoddot_rPPs; rhoddot_tPPs; rhoddot_hPPs];
 
 

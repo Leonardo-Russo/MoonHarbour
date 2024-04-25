@@ -8,6 +8,9 @@ syms b0_1 b1_1 b2_1 b3_1 b0_2 b1_2 b2_2 b3_2 real
 syms c0_1 c1_1 c2_1 c3_1 c0_2 c1_2 c2_2 c3_2 real
 vars = [a0_1, a1_1, a2_1, a3_1, a0_2, a1_2, a2_2, a3_2, b0_1, b1_1, b2_1, b3_1, b0_2, b1_2, b2_2, b3_2, c0_1, c1_1, c2_1, c3_1, c0_2, c1_2, c2_2, c3_2];
 
+% Solution Existance Flag
+exists_solution = 1;
+
 % Define the Spline Equations
 x0_eq = a0_1 + a1_1 * (t - t0) + a2_1 * (t - t0)^2 + a3_1 * (t - t0)^3;
 u0_eq = a1_1 + 2 * a2_1 * (t - t0) + 3 * a3_1 * (t - t0)^2;
@@ -92,14 +95,28 @@ coeffs_y_2 = [double(solution.b3_2), double(solution.b2_2), double(solution.b1_2
 coeffs_z_1 = [double(solution.c3_1), double(solution.c2_1), double(solution.c1_1), double(solution.c0_1)];
 coeffs_z_2 = [double(solution.c3_2), double(solution.c2_2), double(solution.c1_2), double(solution.c0_2)];
 
-% Breakpoints
-breaks = [t0, t1, tf];
+% Check the Existance of a Solution
+if isempty(coeffs_x_1) || isempty(coeffs_x_2) || isempty(coeffs_y_1) || isempty(coeffs_y_2) || isempty(coeffs_z_1) || isempty(coeffs_z_2)
+    exists_solution = 0;
+    warning('No possible solution for the Tangent Interpolation! Proceeding with the two-point interpolation instead.')
+end
 
-% Create Spline Structure Using mkpp
-rho_rPPs = mkpp(breaks, [coeffs_x_1; coeffs_x_2]);
-rho_tPPs = mkpp(breaks, [coeffs_y_1; coeffs_y_2]);
-rho_hPPs = mkpp(breaks, [coeffs_z_1; coeffs_z_2]);
-RHOrefPPs = [rho_rPPs; rho_tPPs; rho_hPPs];
+if exists_solution
+
+    % Breakpoints
+    breaks = [t0, t1, tf];
+    
+    % Create Spline Structure Using mkpp
+    rho_rPPs = mkpp(breaks, [coeffs_x_1; coeffs_x_2]);
+    rho_tPPs = mkpp(breaks, [coeffs_y_1; coeffs_y_2]);
+    rho_hPPs = mkpp(breaks, [coeffs_z_1; coeffs_z_2]);
+    RHOrefPPs = [rho_rPPs; rho_tPPs; rho_hPPs];
+
+else
+
+    RHOrefPPs = [];
+
+end
 
 
 end

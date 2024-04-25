@@ -1,25 +1,23 @@
-function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
-    rhodotd_LVLH, rhoddotd_LVLH, f_norm] = NaturalFeedbackControl(t, ...
-    TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, misalignment, clock, is_col)
+function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
+    rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, xb_LVLH] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, clock, is_col)
 
+% -------------------- Orbital Control -------------------- %
 
 % ----- Natural Relative Motion ----- %
 
 global pbar
 
-% Initialize State Derivative
-dTCC = zeros(13, 1); 
-    
-% Retrieve Data from Input
+% Define Attitude Saturation Torque
+Tc_max = 1/(1e6*DU^2/TU^2*MU);      % 1 Nm
 
-if is_col
-    MEEt = TCC(1:6);
-    RHO_LVLH = TCC(7:12);
-else
-    MEEt = TCC(1:6)';
-    RHO_LVLH = TCC(7:12)';
-end
+% Initialize State Derivative
+dY = zeros(24, 1); 
+    
+% Retrieve Data from Interpolated State
+TCC = ppsval(TCC_PPs, t);
+MEEt = TCC(1:6);
+RHO_LVLH = TCC(7:12);
 x7 = TCC(13);
 
 % Retrieve RHO State Variables
@@ -107,29 +105,103 @@ un = -f + rhoddotd_LVLH - Kd*(rhodot_LVLH-rhodotd_LVLH) - Kp*(rho_LVLH -rhod_LVL
 un_hat = un / norm(un);
 un_norm = norm(un);
 
-% Apply Thrust Misalignment
-alphan = atan2(un_hat(2), un_hat(1));
-deltan = asin(un_hat(3));
-beta = misalignment.beta;
-gamma = misalignment.gamma;
-
-ur = un_norm * (sin(gamma) * cos(beta) * sin(alphan) + sin(gamma) * sin(beta) * cos(deltan) * cos(alphan) + cos(gamma) * cos(deltan) * cos(alphan));
-ut = un_norm * (-sin(gamma) * cos(beta) * cos(alphan) + sin(gamma) * sin(beta) * sin(deltan) * sin(alphan) + cos(gamma) * cos(deltan) * sin(alphan));
-uh = un_norm * (-sin(gamma) * sin(beta) * cos(deltan) + cos(gamma) * sin(deltan));
-u = [ur; ut; uh];
-
 % Compute Mass Ratio Derivative
 c = 30/DU*TU;           % effective exhaust velocity = 30 km/s
-x7_dot = - x7*norm(u)/c;
+x7_dot = - x7*norm(un_norm)/c;
 
 
 
-% Assign State Derivatives
-dTCC(1:6) = G*apt_LVLHt;
-dTCC(6) = dTCC(6) + sqrt(muM/MEEt(1)^3)*eta^2;
-dTCC(7:9) = rhodot_LVLH;
-dTCC(10:12) = f + u;
-dTCC(13) = x7_dot;
+% -------------------- Attitude Control -------------------- %
+
+% Retrieve Attitude State Variables
+if is_col
+    Xb = Y(14:17);
+    w = Y(18:20);
+    omegas = Y(21:24);
+else
+    Xb = Y(14:17)';
+    w = Y(18:20)';
+    omegas = Y(21:24)';
+end
+
+qb0 = Xb(1);
+qb = Xb(2:4);
+
+% Define Chaser Parameters
+Jc = [900, 50, -100;...
+      50, 1100, 150;...
+      -100, 150, 1250]*1e-6/(DU^2*MU);       % (kg) m^2
+
+% Gain Parameters
+% omega_n = 0.1*TU;       % rad/s
+% omega_n = 0.05*TU;      
+xi = 1;
+c1 = 2 * omega_n^2;
+c2 = 2*xi*omega_n/c1;
+invA = c1 * eye(3);
+B = c2 * eye(3);
+
+% Retrieve Commanded Attitude
+wc = ppsval(omega_cPPs, t);
+wc_dot = ppsval(omegadot_cPPs, t);
+wd = w - wc;                            % compute desired attitude
+
+% Compute Error Quaternions
+Q_N2C = ppsval(Q_N2C_PPs, t);
+qc0 = Q_N2C(1);
+qc = Q_N2C(2:4);
+qe0 = qc0*qb0 + qc' * qb;
+qe = -qc*qb0 + qc0*qb - skew(qc)*qb;
+
+% Define Attitude Control System Specifications -> 4 ortho-skew Reaction Wheels
+a1 = [1/sqrt(3)     1/sqrt(3)      1/sqrt(3)]';
+a2 = [1/sqrt(3)     -1/sqrt(3)     1/sqrt(3)]';
+a3 = [-1/sqrt(3)    1/sqrt(3)      1/sqrt(3)]';
+a4 = [-1/sqrt(3)    -1/sqrt(3)     1/sqrt(3)]';
+as = [a1, a2, a3, a4];
+
+Is = 1*1e-6/(DU^2*MU);      % kg m^2
+It = 0.5*1e-6/(DU^2*MU);    % kg m^2
+
+A = buildA(Is, as);         % this is the A matrix for reaction wheels
+
+
+% Define Mc
+Mc = 0;         % no external torques applied on the chaser
+
+% Compute Commanded Torque
+Tc = skew(w)*Jc*w - Mc + Jc*wc_dot - Jc*invA*B*wd - sign_qe0_0*Jc*invA*qe;
+
+if norm(Tc) > Tc_max
+    Tc = Tc_max * (Tc/norm(Tc));
+end
+
+
+% Compute Attitude State Derivatives
+omegas_dot = -A' / (A * A') * Tc;
+w_dot = Jc \ (Mc - skew(w)*Jc*w - skew(w)*A*omegas - A*omegas_dot);
+qb0_dot = -0.5 * w' * qb;
+qb_dot = -0.5 * skew(w) * qb + 0.5 * qb0 * w;
+xb_dot = [qb0_dot; qb_dot];
+
+
+% Retrieve Actual Thrust Direction
+R_B2N = q2C(qb0, qb)';
+xb_MCI = R_B2N(:, 1);
+xb_LVLH = R_MCI2LVLHt * xb_MCI;
+u = un_norm * xb_LVLH;
+% u = un_hat * un_norm;
+
+
+% ---------- Assign State Derivatives ---------- %
+dY(1:6) = G*apt_LVLHt;
+dY(6) = dY(6) + sqrt(muM/MEEt(1)^3)*eta^2;
+dY(7:9) = rhodot_LVLH;
+dY(10:12) = f + u;
+dY(13) = x7_dot;
+dY(14:17) = xb_dot;
+dY(18:20) = w_dot;
+dY(21:24) = omegas_dot;
 
 
 % Clock for the Integration
