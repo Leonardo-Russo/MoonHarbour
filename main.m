@@ -13,7 +13,7 @@ addpath('Data/temp/')
 
 % Define Options
 global opt
-opt = struct('name', "Progator Options");
+opt = struct('name', "Options");
 opt.saveplots = false;
 opt.create_animation = false;
 opt.show_progress = false;
@@ -59,16 +59,16 @@ g0 = 9.80665;
 u_limit = 5e-5*g0;
 
 % Define the Chaser Initial Conditions ~ norm(rhodot_LVLH) = 1 m/s -> condition applied for the finetuning of the gain parameters
-RHO0_LVLH = [1.5, 0, 0, -1e-6, -1e-3, -1e-3]';                  % km, km/s
+RHO0_LVLH = [1.5, 0, 0, -1e-6, -1e-3, -1e-3]';              % km, km/s
 RHO0_LVLH = [RHO0_LVLH(1:3)/DU; RHO0_LVLH(4:6)/DU*TU];      % adim
 
 % Define Desired Conditions for Docking
-RHOf_LVLH = [-5e-3, 0, 0, 1e-5, 0, 0]';                     % km, km/s
+RHOf_LVLH = [-5e-3, 0, 0, 5e-5, 0, 0]';                     % km, km/s
 RHOf_LVLH = [RHOf_LVLH(1:3)/DU; RHOf_LVLH(4:6)/DU*TU];      % adim
 
 % Define Direct Approach Conditions
 rhof_LVLH_DA = 5e-3/DU * RHO0_LVLH(1:3)/norm(RHO0_LVLH(1:3));
-rhodotf_LVLH_DA = -1e-5/DU*TU * RHO0_LVLH(1:3)/norm(RHO0_LVLH(1:3));
+rhodotf_LVLH_DA = -5e-5/DU*TU * RHO0_LVLH(1:3)/norm(RHO0_LVLH(1:3));
 RHOf_LVLH_DA = [rhof_LVLH_DA; rhodotf_LVLH_DA];
 
 %% Propagate Reference Target Trajectory
@@ -199,7 +199,13 @@ TCC_ctrl_DA = [TCC_ctrl_DA; TCC_temp];
 TCC_T0 = TCC_ctrl_DA(end, :);           % this will be the initial point for the Terminal Trajectory
 t0_T = tspan_ctrl_DA(end);              % this will be the initial time for the Terminal Trajectory
 
-fprintf('Reached 50m Distance @ %.2f hrs.\n', (t0_T-t0)*TU/3600)
+% fprintf('Reached 50m Distance at: %02d hrs, %02d mins, %2.3f secs\n', time_elapsed(t0_T, t0, TU));
+disp(sprintf('Reached 100m Distance @ <strong>[%02d:%02d:%06.3f]</strong> (hh:mm:ss)', time_elapsed(t0_T, t0, TU)));
+
+% Show Original Trajectory
+figure('name', 'Original Trajectory');
+DrawTrajLVLH3D(TCC_ctrl_DA(:, 7:9)*DU);
+testPPs(RHOdPPsLVLH_DA(1:3), tspan_ctrl_DA);
 
 
 %% Terminal Trajectory: Chaser Backwards Propagation
@@ -234,7 +240,7 @@ save('Data/debugging.mat');
 close all
 clear
 load('Data/debugging.mat');
-clc
+% clc
 
 % Initialize Regenerative Quantities
 tspan_ctrl = [];
@@ -264,8 +270,8 @@ TCC_PPs_stack = [];
 misalignment = define_misalignment_error("null");
 
 % Define Propagation Settings
-dt_regen = 5*60/TU;             % renegerative propagation interval
-dt_min = 1*60/TU;               % minimum propagation interval
+dt_regen = 1*60/TU;             % renegerative propagation interval
+dt_min = 0.5*60/TU;               % minimum propagation interval
 prop_step = 1/TU;               % propagation time step
 max_branches = 500;             % maximum n° of branches of the regenerative trajectory
 optODE_rt = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
@@ -307,7 +313,7 @@ for branch = 1 : max_branches
 
     % Set the Via Points and Interpolate the Reference Terminal Trajectory
     if branch == 1
-        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt, ~, t1_0, ~] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1]);
+        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt, rho1_0, t1_0, l_hat_0] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1]);
     else
         [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], NaN, t1_0, NaN);
     end
@@ -434,7 +440,8 @@ for branch = 1 : max_branches
     % Define Time Domain
     t0_AOCS = t0_rt;
     tf_AOCS = min(t0_rt + dt_regen, tf_rt);
-    branch_squish_tol = 30/TU;  % 30 s
+    % branch_squish_tol = 30/TU;  % 30 s
+    branch_squish_tol = prop_step;
     if tf_rt - tf_AOCS < branch_squish_tol
         tf_AOCS = tf_rt;
     end
@@ -537,8 +544,11 @@ for branch = 1 : max_branches
     xb_AOCS_stack = [xb_AOCS_stack; xb_AOCS];
     u_rt_norm_stack = [u_rt_norm_stack; u_rt_norm];
     u_AOCS_norm_stack = [u_AOCS_norm_stack; u_AOCS_norm];
+    
+    % fprintf('(%.0fVP) Branch %.0f: [%02d h, %02d m, %2.3f s] -> [%02d h, %02d m, %2.3f s]\n', length(t_viapoints_rt), branch, time_elapsed(t0_AOCS, t0, TU), time_elapsed(tf_AOCS, t0, TU));
+    % fprintf('(%.0fVP) Branch %.0f: [%02d:%02d:%06.3f] -> [%02d:%02d:%06.3f]\n', length(t_viapoints_rt), branch, time_elapsed(t0_AOCS, t0, TU), time_elapsed(tf_AOCS, t0, TU));
+    disp(sprintf('(%.0fVP) Branch %.0f: <strong>[%02d:%02d:%06.3f]</strong> -> <strong>[%02d:%02d:%06.3f]</strong>', length(t_viapoints_rt), branch, time_elapsed(t0_AOCS, t0, TU), time_elapsed(tf_AOCS, t0, TU)));
 
-    fprintf('Branch %.0f: from t0 = %.4f min to tf = %.4f min\n', branch, ([t0_AOCS, tf_AOCS]-t0)*TU/60)
 
     % In-Step Visualization
     if debug
@@ -779,7 +789,7 @@ save('Data/temp/Raw Propagation.mat');
 
 close all
 clear
-clc
+% clc
 
 load('Data/temp/Raw Propagation.mat');
 
@@ -860,7 +870,7 @@ for i = 1 : size(RHO_LVLH, 1)
         end
         
         % AOCS Reconstruction
-        [~, ~, ~, ~, u_AOCS(s, :), ~, ~, ~, ~, Tc(s, :), ~] = ...
+        [~, ~, ~, ~, u(i, :), ~, ~, ~, f_norms(i), Tc(s, :), ~] = ...
             AOCS(tspan_ctrl(s), Y_ctrl(s, :)', EarthPPsMCI, SunPPsMCI, muM, ...
             muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T(:, k), kp, omega_n, DU, TU, MU, TCC_PPs_stack(:, k), omega_cPPs_rt_stack(:, k), omegadot_cPPs_rt_stack(:, k), Q_N2C_PPs_rt_stack(:, k), sign_qe0_0_stack(k), misalignment, 0, 1);
 
@@ -917,12 +927,12 @@ save('Data/temp/Post-Processed Propagation.mat');
 close all
 clear
 load('Data/temp/Post-Processed Propagation.mat');
-clc
+% clc
 
 
 opt.saveplots = false;
 opt.showgui = false;
-opt.additional_plots = true;
+opt.additional_plots = false;
 
 try
     close(results_gui)
@@ -954,11 +964,11 @@ if opt.showgui
 end
 
 % Show Numerical Results
-fprintf('Total Runtime: %.1f s.\n', runtime)
+fprintf('\nTotal Runtime: %.1f s.\n\n', runtime)
 desState = [RHOf_LVLH(1:3)'*DU*1e3, RHOf_LVLH(4:6)'*DU/TU*1e3];
 finalState = [TC_drift(end, 7:9)*DU*1e3, TC_drift(end, 10:12)*DU/TU*1e3];
 deltaState = desState-finalState;
-VarNames = {'rho (m)', 'theta (m)', 'h (m)', 'v_rho (m/s)', 'v_theta (m/s)', 'v_h (m/s)'};
+VarNames = {'r (m)', 'theta (m)', 'h (m)', 'v_r (m/s)', 'v_theta (m/s)', 'v_h (m/s)'};
 DesRhoState = array2table(desState, 'VariableNames', VarNames, 'RowNames', {'Desired State'});
 FinalRhoState = array2table(finalState, 'VariableNames', VarNames, 'RowNames', {'Final State'});
 DeltaRhoState = array2table(deltaState, 'VariableNames', VarNames, 'RowNames', {'Delta State'});

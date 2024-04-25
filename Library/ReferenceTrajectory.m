@@ -80,7 +80,7 @@ M = 1000;   % n° of points for sample tspan
 tspan_check = linspace(t0, tf, M)';
 dist = zeros(M, 1);
 
-sphere_radius = 12e-3/DU;           % 12m of emergency sphere radius
+sphere_radius = 10e-3/DU;           % 12m of emergency sphere radius
 emergency_radius = 10e-3/DU;
 
 % Check for Emergency Sphere Intersection
@@ -96,7 +96,7 @@ end
 % Three Via Points Method
 if collision
 
-    fprintf('Switching to 3 Via Points Method.\n')
+    % fprintf('Switching to 3 Via Points Method.\n')
 
     % Compute MidTime
     if isnan(t1)
@@ -126,15 +126,18 @@ if collision
     rho_r = [rho_r0, rho_r1, rho_rf]';
     rho_t = [rho_t0, rho_t1, rho_tf]';
     rho_h = [rho_h0, rho_h1, rho_hf]';
-    
-    % Compute Reference Trajectory
-    TangentPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
 
-    if ~isempty(TangentPPs)
-        RHOrefPPs = TangentPPs;
-        viapoints = [rho_r, rho_t, rho_h];
-        tspan_viapoints = [t0, t1, tf]';
-        fprintf('rho1 = [%.4f\t%.4f\t%.4f]\n', rho_1*DU)
+    if t1 > t0
+    
+        % Compute Reference Trajectory
+        TangentPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
+    
+        if ~isempty(TangentPPs)
+            RHOrefPPs = TangentPPs;
+            viapoints = [rho_r, rho_t, rho_h];
+            tspan_viapoints = [t0, t1, tf]';
+        end
+
     end
 
 end
