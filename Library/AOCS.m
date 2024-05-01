@@ -189,8 +189,19 @@ xb_dot = [qb0_dot; qb_dot];
 R_B2N = q2C(qb0, qb)';
 xb_MCI = R_B2N(:, 1);
 xb_LVLH = R_MCI2LVLHt * xb_MCI;
-u = un_norm * xb_LVLH;
-% u = un_hat * un_norm;
+u_opt = un_norm * xb_LVLH;
+u_opt_hat = xb_LVLH;
+
+% Apply Thrust Misalignment
+alpha_opt = atan2(u_opt_hat(2), u_opt_hat(1));
+delta_opt = asin(u_opt_hat(3));
+beta = misalignment.beta;
+gamma = misalignment.gamma;
+
+ur = un_norm * (sin(gamma) * cos(beta) * sin(alpha_opt) + sin(gamma) * sin(beta) * cos(delta_opt) * cos(alpha_opt) + cos(gamma) * cos(delta_opt) * cos(alpha_opt));
+ut = un_norm * (-sin(gamma) * cos(beta) * cos(alpha_opt) + sin(gamma) * sin(beta) * sin(delta_opt) * sin(alpha_opt) + cos(gamma) * cos(delta_opt) * sin(alpha_opt));
+uh = un_norm * (-sin(gamma) * sin(beta) * cos(delta_opt) + cos(gamma) * sin(delta_opt));
+u = [ur; ut; uh];
 
 
 % ---------- Assign State Derivatives ---------- %
