@@ -10,14 +10,14 @@ addpath('Data/Planets/')
 addpath('Data/Materials/')
 
 verbose = true;
-fmain('main.mat', verbose, "null", false, false);
+fmain('Data/Utils/main.mat', verbose, "null", false, false);
 
 
 %% Visualize the Results
 
 close all
 
-load('main.mat');
+load('Data/Utils/main.mat');
 
 opt.saveplots = false;
 opt.additional_plots = false;
