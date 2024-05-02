@@ -1,7 +1,7 @@
 function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm] = NaturalFeedbackControl(t, ...
     TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, DU, TU, misalignment, clock, is_col)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, is_col)
 
 
 % ----- Natural Relative Motion ----- %
@@ -106,6 +106,10 @@ Kd = kd*eye(3,3);
 un = -f + rhoddotd_LVLH - Kd*(rhodot_LVLH-rhodotd_LVLH) - Kp*(rho_LVLH -rhod_LVLH);
 un_hat = un / norm(un);
 un_norm = norm(un);
+if un_norm > u_lim
+    un_norm = u_lim;
+end
+
 
 % Apply Thrust Misalignment
 alphan = atan2(un_hat(2), un_hat(1));

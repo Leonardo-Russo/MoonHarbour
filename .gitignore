@@ -1,6 +1,6 @@
-*.mat
-*.fig
 *.asv
 *.MATLABDriveTag
-*.stl
+Data/Graphics/
+Data/Ephemeris/
 Library/Archive/
+Simulations/Results/**/*.mat

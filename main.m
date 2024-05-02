@@ -8,13 +8,14 @@ addpath('Library/')
 addpath('Data/')
 addpath('Data/Planets/')
 addpath('Data/Materials/')
-addpath('Data/temp/')
 
 verbose = true;
-fmain('main.mat', verbose, "null");
+fmain('main.mat', verbose, "null", false, false);
 
 
 %% Visualize the Results
+
+close all
 
 load('main.mat');
 
@@ -127,6 +128,7 @@ p3 = plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'Line
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
 title('Control Norm')
+grid on
 legend([p1, p2, p3], '$|u|$', '$u_{max}$', '$f$','Location', 'south', 'Fontsize', 12, 'Interpreter', 'latex');
 hold off
 zoomPos = [0.5, 0.6, 0.3, 0.25]; % set position of the zoomed plot [left, bottom, width, height]
@@ -138,7 +140,7 @@ plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 
 plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
 grid on
 xlim([(t0_T-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]);   % set the x and y limits for the zoomed plot based on the final part of the data
-ylim([-u_limit(1)/2, u_limit(1)/2]);
+% ylim([-u_limit(1)/2, u_limit(1)/2]);
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
 if opt.saveplots
@@ -170,7 +172,7 @@ plot((tspan-t0)*TU*sec2hrs, u(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
 plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
 grid on
 xlim([(t0_T-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]); % set the x and y limits to focus on the final part of the plot
-ylim([-u_limit(1)/2, u_limit(1)/2]);
+% ylim([-u_limit(1)/2, u_limit(1)/2]);
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
 if opt.saveplots

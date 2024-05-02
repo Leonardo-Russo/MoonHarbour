@@ -1,6 +1,6 @@
 function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, xb_LVLH] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, clock, is_col)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, failure_times, clock, is_col)
 
 % -------------------- Orbital Control -------------------- %
 
@@ -104,6 +104,16 @@ Kd = kd*eye(3,3);
 un = -f + rhoddotd_LVLH - Kd*(rhodot_LVLH-rhodotd_LVLH) - Kp*(rho_LVLH -rhod_LVLH);
 un_hat = un / norm(un);
 un_norm = norm(un);
+if un_norm > u_lim
+    un_norm = u_lim;
+end
+
+% Apply Temporary Engine Failure
+if ~isnan(failure_times(1))
+    if t >= failure_times(1) && t <= failure_times(2)
+        un_norm = 0;
+    end
+end
 
 % Compute Mass Ratio Derivative
 c = 30/DU*TU;           % effective exhaust velocity = 30 km/s
