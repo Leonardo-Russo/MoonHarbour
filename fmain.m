@@ -1,18 +1,8 @@
 function fmain(workspace_path, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag)
 
 
-% Define Options
+% Retrieve Options
 global opt
-opt = struct('name', "Options");
-opt.saveplots = false;
-opt.create_animation = false;
-opt.show_progress = false;
-opt.compute_target = true;
-opt.additional_plots = false;
-opt.showgui = false;
-opt.N = 1000;                   % n° of points for the Interpolation
-opt.RelTolODE = 1e-7;           % options for ode()
-opt.AbsTolODE = 1e-6;
 
 OptionsODE = odeset('RelTol', opt.RelTolODE, 'AbsTol', opt.AbsTolODE);
 
@@ -96,11 +86,20 @@ if opt.compute_target
     [~, omegadotPPsLVLH] = TargetHandler(Xt_MCI_ref, COEt_ref, MEEt_ref, tspan_ref, ...
         EarthPPsMCI, SunPPsMCI, MoonPPsECI, deltaE, psiM, deltaM, muE, muS);
 
-    save('../Data/Utils/Target Propagation.mat');
+    if contains(pwd, 'Simulations')
+        save('../Data/Utils/Target Propagation.mat');
+    else
+        save('Data/Utils/Target Propagation.mat');
+    end
+    
 
 else
 
-    load('../Data/Utils/Target Propagation.mat', 'X0t_MCI', 'COE0t', 'MEE0t', 'EarthPPsMCI', 'DSGPPsMCI', 'SunPPsMCI', 'MoonPPsECI', 'time', 't0', 'tf', 'tspan_ref', 'dt_ref', 'MEEt_ref', 'COEt_ref', 'Xt_MCI_ref', 'omegadotPPsLVLH');
+    if contains(pwd, 'Simulations')
+        load('../Data/Utils/Target Propagation.mat', 'X0t_MCI', 'COE0t', 'MEE0t', 'EarthPPsMCI', 'DSGPPsMCI', 'SunPPsMCI', 'MoonPPsECI', 'time', 't0', 'tf', 'tspan_ref', 'dt_ref', 'MEEt_ref', 'COEt_ref', 'Xt_MCI_ref', 'omegadotPPsLVLH');
+    else
+        load('Data/Utils/Target Propagation.mat', 'X0t_MCI', 'COE0t', 'MEE0t', 'EarthPPsMCI', 'DSGPPsMCI', 'SunPPsMCI', 'MoonPPsECI', 'time', 't0', 'tf', 'tspan_ref', 'dt_ref', 'MEEt_ref', 'COEt_ref', 'Xt_MCI_ref', 'omegadotPPsLVLH');
+    end
 
 end
 

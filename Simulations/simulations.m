@@ -13,6 +13,21 @@ addpath('../Data/Ephemeris/')
 addpath('../Data/Utils/')
 addpath('../Simulations/')
 
+
+% Define Options
+global opt
+opt = struct('name', "Options");
+opt.saveplots = false;
+opt.create_animation = false;
+opt.show_progress = false;
+opt.compute_target = true;
+opt.additional_plots = false;
+opt.showgui = false;
+opt.N = 1000;                   % n° of points for the Interpolation
+opt.RelTolODE = 1e-7;           % options for ode()
+opt.AbsTolODE = 1e-6;
+
+
 % Define the n° of simulations
 MC = 10;
 
