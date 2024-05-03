@@ -24,7 +24,7 @@ function [X0_DSG, COE0, MEE0, EarthPPsMCI, DSGPPsMCI, SunPPsMCI, MoonPPsECI, tim
 % tf = final time
 
 % Load Data from Ephemeris - states are provided in ECI
-load('Data/Ephemeris/ephemeris_3M_17_27_05_2025.mat', 'stateDSG', 'stateMoon', 'stateSun', 'time');
+load('ephemeris_3M_17_27_05_2025.mat', 'stateDSG', 'stateMoon', 'stateSun', 'time');
 
 % Recall Global Variables
 global DU TU muM Rm
