@@ -3,3 +3,5 @@
 Data/Graphics/
 Data/Ephemeris/
 Library/Archive/
+Simulations/Results/**/*.fig
+Simulations/Results/**/*.mat

@@ -8,6 +8,7 @@ addpath('Library/')
 addpath('Data/')
 addpath('Data/Planets/')
 addpath('Data/Materials/')
+addpath('Data/Ephemeris/')
 
 % Define Options
 global opt
@@ -15,15 +16,19 @@ opt = struct('name', "Options");
 opt.saveplots = false;
 opt.create_animation = false;
 opt.show_progress = false;
-opt.compute_target = true;
+opt.compute_target = false;
 opt.additional_plots = false;
 opt.showgui = false;
 opt.N = 1000;                   % n° of points for the Interpolation
 opt.RelTolODE = 1e-7;           % options for ode()
 opt.AbsTolODE = 1e-6;
 
-verbose = true;
-fmain('Data/Utils/main.mat', verbose, "null", false, false);
+verbose = false;
+misalignment_type = "null";
+state_perturbation_flag = false;
+engine_failure_flag = true;
+
+fmain('Data/Utils/main.mat', verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
 
 
 %% Visualize the Results

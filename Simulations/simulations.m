@@ -11,7 +11,6 @@ addpath('../Data/Planets/')
 addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 addpath('../Data/Utils/')
-addpath('../Simulations/')
 
 
 % Define Options
@@ -29,17 +28,32 @@ opt.AbsTolODE = 1e-6;
 
 
 % Define the n° of simulations
-MC = 10;
+MC = 100;
 
 % Define Simulation Options
-sim_dir = "state_perturbation_10";
+sim_dir = "state_perturbation";
 mkdir(strcat("Results/", sim_dir));
 
-parfor mc = 1 : MC
+for mc = 1 : MC
 
     workspace_path = strcat("Results/", sim_dir, "/", sim_dir, "-", string(mc), ".mat");
 
-    fmain(workspace_path, false, "const", true, false);
+    fmain(workspace_path, false, "null", true, false);
+
+    disp(mc);
+
+end
+
+
+% Define Simulation Options
+sim_dir = "engine_failure";
+mkdir(strcat("Results/", sim_dir));
+
+for mc = 1 : MC
+
+    workspace_path = strcat("Results/", sim_dir, "/", sim_dir, "-", string(mc), ".mat");
+
+    fmain(workspace_path, false, "null", false, true);
 
     disp(mc);
 
