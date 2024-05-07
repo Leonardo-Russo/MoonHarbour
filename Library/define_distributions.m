@@ -6,7 +6,7 @@ mu_gamma = 0;                       % gamma mean value
 truncation_gamma = 3*sigma_gamma;   % gamma truncation limit
 
 gamma_dist = makedist('normal', 'mu', mu_gamma, 'sigma', sigma_gamma);
-gamma_dist = truncate(gamma_dist, 0, truncation_gamma);
+gamma_dist = truncate(gamma_dist, -truncation_gamma, truncation_gamma);
 gamma_dist = random(gamma_dist, MC, 1);
 
 

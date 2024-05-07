@@ -8,9 +8,6 @@ function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
 
 global pbar
 
-% Define Attitude Saturation Torque
-Tc_max = 1/(1e6*DU^2/TU^2*MU);      % 1 Nm
-
 % Initialize State Derivative
 dY = zeros(24, 1); 
     
@@ -170,7 +167,7 @@ a3 = [-1/sqrt(3)    1/sqrt(3)      1/sqrt(3)]';
 a4 = [-1/sqrt(3)    -1/sqrt(3)     1/sqrt(3)]';
 as = [a1, a2, a3, a4];
 
-Is = 1*1e-6/(DU^2*MU);      % kg m^2
+Is = 0.84*1e-6/(DU^2*MU);       % 0.84 kg m^2
 It = 0.5*1e-6/(DU^2*MU);    % kg m^2
 
 A = buildA(Is, as);         % this is the A matrix for reaction wheels
@@ -182,6 +179,7 @@ Mc = 0;         % no external torques applied on the chaser
 % Compute Commanded Torque
 Tc = skew(w)*Jc*w - Mc + Jc*wc_dot - Jc*invA*B*wd - sign_qe0_0*Jc*invA*qe;
 
+Tc_max = 0.8/(1e6*DU^2/TU^2*MU);      % 0.8 Nm
 if norm(Tc) > Tc_max
     Tc = Tc_max * (Tc/norm(Tc));
 end
@@ -189,7 +187,7 @@ end
 
 % Compute Attitude State Derivatives
 omegas_dot = -A' / (A * A') * Tc;
-w_dot = Jc \ (Mc - skew(w)*Jc*w - skew(w)*A*omegas - A*omegas_dot);
+w_dot = Jc \ (Mc - skew(w)*Jc*w + Tc);
 qb0_dot = -0.5 * w' * qb;
 qb_dot = -0.5 * skew(w) * qb + 0.5 * qb0 * w;
 xb_dot = [qb0_dot; qb_dot];

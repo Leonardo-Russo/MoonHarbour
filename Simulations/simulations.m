@@ -28,32 +28,17 @@ opt.AbsTolODE = 1e-6;
 
 
 % Define the n° of simulations
-MC = 100;
+MC = 10;
 
 % Define Simulation Options
-sim_dir = "state_perturbation";
+sim_dir = "misalignment_kpduecento";
 mkdir(strcat("Results/", sim_dir));
 
 for mc = 1 : MC
 
     workspace_path = strcat("Results/", sim_dir, "/", sim_dir, "-", string(mc), ".mat");
 
-    fmain(workspace_path, false, "null", true, false);
-
-    disp(mc);
-
-end
-
-
-% Define Simulation Options
-sim_dir = "engine_failure";
-mkdir(strcat("Results/", sim_dir));
-
-for mc = 1 : MC
-
-    workspace_path = strcat("Results/", sim_dir, "/", sim_dir, "-", string(mc), ".mat");
-
-    fmain(workspace_path, false, "null", false, true);
+    fmain(workspace_path, false, "const", false, false);
 
     disp(mc);
 

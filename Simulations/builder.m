@@ -12,7 +12,7 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id = "engine_failure";    % specific results identifier
+sim_id = "state_perturbation";    % specific results identifier
 
 
 %% Extract the Results
@@ -28,7 +28,7 @@ data = struct('RHO_LVLH', [], 'M_ctrl_DA', [], 'DU', [], 'RHOd_LVLH', [], 'color
 data = repmat(data, n_sims, 1);
 
 % Preallocate Table
-table = zeros(n_sims, 8);
+table = zeros(n_sims, 10);
 
 % Define colormap
 cmap = lines(n_sims);
@@ -64,7 +64,7 @@ for k = 1 : n_sims
             data(index).status = false;
         end
     
-        table(index, :) = [index, data(index).status, temp.deltaState];
+        table(index, :) = [index, data(index).status, temp.deltaState, norm(temp.deltaState(1:3)), norm(temp.deltaState(4:6))];
 
     catch
 
@@ -84,12 +84,14 @@ save(strcat(sim_dir, "data.mat"));
 close all
 
 % Create the Results table
-results_table = array2table(table, 'VariableNames', {'id', 'status', 'dr (m)', 'dtheta (m)', 'dh (m)', 'dv_r (m/s)', 'dv_theta (m/s)', 'dv_h (m/s)'});
+results_table = array2table(table, 'VariableNames', {'id', 'status', 'dr (m)', 'dtheta (m)', 'dh (m)', 'dv_r (m/s)', 'dv_theta (m/s)', 'dv_h (m/s)', 'delta_rho (m)', 'delta_rhodot (m)'});
 excel_filepath = fullfile(sim_dir, strcat(sim_id, ".xlsx"));
 writetable(results_table, excel_filepath);
 disp(results_table);
 fprintf('Results have been saved to: "%s"\n', excel_filepath);
 
+fprintf('\nFinal Position Error:\nmean = %.6f mm    std = %.6f mm\n\nFinal Velocity Error:\nmean = %.6f mm/s    std = %.6f mm/s\n', mean(table(:, 9))*1e3, std(table(:, 9))*1e3, mean(table(:, 10))*1e3, std(table(:, 10))*1e3)
+return
 terminal_traj = figure('name', 'Terminal Chaser Trajectory in LVLH Space', 'WindowState', 'maximized');
 % title('Terminal Chaser LVLH Trajectory')
 for k = 1 : n_sims
@@ -113,5 +115,5 @@ view(-65, 15)
 
 % Save the Figure
 savefig(terminal_traj, fullfile(sim_dir, strcat(sim_id, ".fig")));
-print(terminal_traj, fullfile(sim_dir, strcat(sim_id, ".png")), '-dpng', '-r1000');          % 1000 DPI
+print(terminal_traj, fullfile(sim_dir, strcat(sim_id, ".png")), '-dpng', '-r300');          % 300 DPI
 

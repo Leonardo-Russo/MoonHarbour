@@ -15,8 +15,8 @@ persistent kp
 dTCC = zeros(13, 1); 
     
 % Retrieve Data from Input
-MEEt = TCC(1:6)';
-RHO_LVLH = TCC(7:12)';
+MEEt = TCC(1:6);
+RHO_LVLH = TCC(7:12);
 x7 = TCC(13);
 
 % Retrieve RHO State Variables
