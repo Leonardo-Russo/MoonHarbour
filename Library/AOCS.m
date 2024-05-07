@@ -1,6 +1,6 @@
 function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
-    rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, xb_LVLH] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, failure_times, clock, is_col)
+    rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, Ta, xb_LVLH] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, failure_times, clock, is_col, include_actuation)
 
 % -------------------- Orbital Control -------------------- %
 
@@ -139,9 +139,7 @@ Jc = [900, 50, -100;...
       50, 1100, 150;...
       -100, 150, 1250]*1e-6/(DU^2*MU);       % (kg) m^2
 
-% Gain Parameters
-% omega_n = 0.1*TU;       % rad/s
-% omega_n = 0.05*TU;      
+% Gain Parameters   
 xi = 1;
 c1 = 2 * omega_n^2;
 c2 = 2*xi*omega_n/c1;
@@ -166,9 +164,10 @@ a2 = [1/sqrt(3)     -1/sqrt(3)     1/sqrt(3)]';
 a3 = [-1/sqrt(3)    1/sqrt(3)      1/sqrt(3)]';
 a4 = [-1/sqrt(3)    -1/sqrt(3)     1/sqrt(3)]';
 as = [a1, a2, a3, a4];
+n_wheels = size(as, 2);
 
 Is = 0.84*1e-6/(DU^2*MU);       % 0.84 kg m^2
-It = 0.5*1e-6/(DU^2*MU);    % kg m^2
+It = 0.5*1e-6/(DU^2*MU);        % kg m^2
 
 A = buildA(Is, as);         % this is the A matrix for reaction wheels
 
@@ -184,10 +183,34 @@ if norm(Tc) > Tc_max
     Tc = Tc_max * (Tc/norm(Tc));
 end
 
-
 % Compute Attitude State Derivatives
 omegas_dot = -A' / (A * A') * Tc;
-w_dot = Jc \ (Mc - skew(w)*Jc*w + Tc);
+
+if include_actuation
+
+    omegas_max = 3000 * 2*pi/60 * TU;   % 3000 rpm
+    for s = 1 : n_wheels
+        if omegas(s) > omegas_max && omegas_dot(s) > 0
+            omegas_dot(s) = 0;
+        elseif omegas(s) < -omegas_max && omegas_dot(s) < 0
+            omegas_dot(s) = 0;
+        end
+    end
+    
+    Ta = - skew(w)*A*omegas - A*omegas_dot;
+    
+    Ta_max = 0.8/(1e6*DU^2/TU^2*MU);      % 0.8 Nm
+    if norm(Ta) > Ta_max
+        Ta = Ta_max * (Ta/norm(Ta));
+    end
+
+else
+
+    Ta = Tc;
+
+end
+
+w_dot = Jc \ (Mc - skew(w)*Jc*w + Ta);
 qb0_dot = -0.5 * w' * qb;
 qb_dot = -0.5 * skew(w) * qb + 0.5 * qb0 * w;
 xb_dot = [qb0_dot; qb_dot];
@@ -203,13 +226,18 @@ u_opt_hat = xb_LVLH;
 % Apply Thrust Misalignment
 alpha_opt = atan2(u_opt_hat(2), u_opt_hat(1));
 delta_opt = asin(u_opt_hat(3));
-beta = misalignment.beta;
-gamma = misalignment.gamma;
 
-ur = un_norm * (sin(gamma) * cos(beta) * sin(alpha_opt) + sin(gamma) * sin(beta) * cos(delta_opt) * cos(alpha_opt) + cos(gamma) * cos(delta_opt) * cos(alpha_opt));
-ut = un_norm * (-sin(gamma) * cos(beta) * cos(alpha_opt) + sin(gamma) * sin(beta) * sin(delta_opt) * sin(alpha_opt) + cos(gamma) * cos(delta_opt) * sin(alpha_opt));
-uh = un_norm * (-sin(gamma) * sin(beta) * cos(delta_opt) + cos(gamma) * sin(delta_opt));
-u = [ur; ut; uh];
+if misalignment.type == "oscillating"
+
+else
+    beta = misalignment.beta;
+    gamma = misalignment.gamma;
+    
+    ur = un_norm * (sin(gamma) * cos(beta) * sin(alpha_opt) + sin(gamma) * sin(beta) * cos(delta_opt) * cos(alpha_opt) + cos(gamma) * cos(delta_opt) * cos(alpha_opt));
+    ut = un_norm * (-sin(gamma) * cos(beta) * cos(alpha_opt) + sin(gamma) * sin(beta) * sin(delta_opt) * sin(alpha_opt) + cos(gamma) * cos(delta_opt) * sin(alpha_opt));
+    uh = un_norm * (-sin(gamma) * sin(beta) * cos(delta_opt) + cos(gamma) * sin(delta_opt));
+    u = [ur; ut; uh];
+end
 
 
 % ---------- Assign State Derivatives ---------- %

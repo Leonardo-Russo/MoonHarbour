@@ -23,9 +23,15 @@ elseif choice == "null"
 elseif choice == "montecarlo"
     mis.beta = beta;
     mis.gamma = gamma;
+elseif choice == "oscillating"
+    [beta, gamma] = define_distributions(1);
+    mis.beta = beta;
+    mis.gamma = gamma;
 else
     error('Unknown Misalignment Error Parameters');
 end
+
+mis.type = choice;
 
 
 end

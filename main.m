@@ -16,17 +16,19 @@ opt = struct('name', "Options");
 opt.saveplots = false;
 opt.create_animation = false;
 opt.show_progress = false;
-opt.compute_target = false;
+opt.compute_target = true;
+opt.compute_direct_approach = true;
+opt.include_actuation = false;
 opt.additional_plots = false;
 opt.showgui = false;
 opt.N = 1000;                   % n° of points for the Interpolation
 opt.RelTolODE = 1e-7;           % options for ode()
 opt.AbsTolODE = 1e-6;
 
-verbose = false;
+verbose = true;
 misalignment_type = "null";
 state_perturbation_flag = false;
-engine_failure_flag = true;
+engine_failure_flag = false;
 
 fmain('Data/Utils/main.mat', verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
 
@@ -279,6 +281,52 @@ legend('T_{c1}', 'T_{c2}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
 grid on
 if opt.saveplots
     saveas(gcf, strcat('Output/Plots/Commanded Torque.jpg'))
+end
+
+
+% Actual Torque
+figure('name', 'Actual Torque')
+plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$T_{a,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('T_{a1}', 'T_{a2}', 'T_{a3}', 'fontsize', 10, 'location', 'best')
+grid on
+if opt.saveplots
+    saveas(gcf, strcat('Output/Plots/Actual Torque.jpg'))
+end
+
+
+% Actual vs Commanded Torque
+figure('name', 'Actual vs Commanded Torque')
+subplot(1, 3, 1)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$T_{1} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('T_{a1}', 'T_{c1}', 'fontsize', 10, 'location', 'best')
+grid on
+subplot(1, 3, 2)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$T_{2} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('T_{a2}', 'T_{c2}', 'fontsize', 10, 'location', 'best')
+grid on
+subplot(1, 3, 3)
+plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+hold on
+plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$T_{3} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+legend('T_{a3}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+grid on
+if opt.saveplots
+    saveas(gcf, strcat('Output/Plots/Actual vs Commanded Torque.jpg'))
 end
 
 
