@@ -85,7 +85,7 @@ if opt.compute_target
         EarthPPsMCI, SunPPsMCI, MoonPPsECI, deltaE, psiM, deltaM, muE, muS);
 
     if contains(pwd, 'Simulations')
-        save('../Data/Utils/target tropagation.mat');
+        save('../Data/Utils/target propagation.mat');
     else
         save('Data/Utils/target propagation.mat');
     end
