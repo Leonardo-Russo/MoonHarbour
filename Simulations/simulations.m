@@ -20,6 +20,8 @@ opt.saveplots = false;
 opt.create_animation = false;
 opt.show_progress = false;
 opt.compute_target = true;
+opt.compute_direct_approach = true;
+opt.include_actuation = false;
 opt.additional_plots = false;
 opt.showgui = false;
 opt.N = 1000;                   % n° of points for the Interpolation
@@ -31,14 +33,14 @@ opt.AbsTolODE = 1e-6;
 MC = 10;
 
 % Define Simulation Options
-sim_dir = "misalignment_kpduecento";
+sim_dir = "misalignment_oscillating";
 mkdir(strcat("Results/", sim_dir));
 
 for mc = 1 : MC
 
     workspace_path = strcat("Results/", sim_dir, "/", sim_dir, "-", string(mc), ".mat");
 
-    fmain(workspace_path, false, "const", false, false);
+    fmain(workspace_path, false, "oscillating", false, false);
 
     disp(mc);
 

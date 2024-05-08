@@ -12,7 +12,7 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id = "state_perturbation";    % specific results identifier
+sim_id = "misalignment_oscillating";    % specific results identifier
 
 
 %% Extract the Results
@@ -91,7 +91,7 @@ disp(results_table);
 fprintf('Results have been saved to: "%s"\n', excel_filepath);
 
 fprintf('\nFinal Position Error:\nmean = %.6f mm    std = %.6f mm\n\nFinal Velocity Error:\nmean = %.6f mm/s    std = %.6f mm/s\n', mean(table(:, 9))*1e3, std(table(:, 9))*1e3, mean(table(:, 10))*1e3, std(table(:, 10))*1e3)
-return
+
 terminal_traj = figure('name', 'Terminal Chaser Trajectory in LVLH Space', 'WindowState', 'maximized');
 % title('Terminal Chaser LVLH Trajectory')
 for k = 1 : n_sims
