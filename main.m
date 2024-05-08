@@ -26,7 +26,7 @@ opt.RelTolODE = 1e-7;           % options for ode()
 opt.AbsTolODE = 1e-6;
 
 verbose = true;
-misalignment_type = "null";
+misalignment_type = "oscillating";
 state_perturbation_flag = false;
 engine_failure_flag = false;
 
@@ -283,126 +283,70 @@ if opt.saveplots
     saveas(gcf, strcat('Output/Plots/Commanded Torque.jpg'))
 end
 
-
-% Actual Torque
-figure('name', 'Actual Torque')
-plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$T_{a,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('T_{a1}', 'T_{a2}', 'T_{a3}', 'fontsize', 10, 'location', 'best')
-grid on
-if opt.saveplots
-    saveas(gcf, strcat('Output/Plots/Actual Torque.jpg'))
+if opt.include_actuation
+    % Actual Torque
+    figure('name', 'Actual Torque')
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$T_{a,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('T_{a1}', 'T_{a2}', 'T_{a3}', 'fontsize', 10, 'location', 'best')
+    grid on
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Actual Torque.jpg'))
+    end
+    
+    
+    % Actual vs Commanded Torque
+    figure('name', 'Actual vs Commanded Torque')
+    subplot(1, 3, 1)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$T_{1} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('T_{a1}', 'T_{c1}', 'fontsize', 10, 'location', 'best')
+    grid on
+    subplot(1, 3, 2)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$T_{2} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('T_{a2}', 'T_{c2}', 'fontsize', 10, 'location', 'best')
+    grid on
+    subplot(1, 3, 3)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$T_{3} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('T_{a3}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+    grid on
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Actual vs Commanded Torque.jpg'))
+    end
 end
 
 
-% Actual vs Commanded Torque
-figure('name', 'Actual vs Commanded Torque')
-subplot(1, 3, 1)
-plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$T_{1} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('T_{a1}', 'T_{c1}', 'fontsize', 10, 'location', 'best')
-grid on
-subplot(1, 3, 2)
-plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$T_{2} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('T_{a2}', 'T_{c2}', 'fontsize', 10, 'location', 'best')
-grid on
-subplot(1, 3, 3)
-plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$T_{3} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('T_{a3}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
-grid on
-if opt.saveplots
-    saveas(gcf, strcat('Output/Plots/Actual vs Commanded Torque.jpg'))
-end
-
-
-% Natural vs AOCS Control Components
-figure('name', "Natural vs AOCS Control Components")
-subplot(1, 3, 1)
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('$u_{r, ideal}$', '$u_{r, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
-grid on
-subplot(1, 3, 2)
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('$u_{\theta, ideal}$', '$u_{\theta, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
-grid on
-subplot(1, 3, 3)
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('$u_{h, ideal}$', '$u_{h, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
-grid on
-if opt.saveplots
-    saveas(gcf, strcat('Output/Plots/Natural vs AOCS Control Components.jpg'))
-end
-
-
-% Commanded Angular Velocities
-figure('name', "Commanded Angular Velocities")
-plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 1)/TU, 'LineWidth', 1.5)
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 2)/TU, 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 3)/TU, 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$\omega_{c,i} \ [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('\omega_{c1}', '\omega_{c2}', '\omega_{c3}', 'fontsize', 10, 'location', 'best')
-grid on
-if opt.saveplots
-    saveas(gcf, strcat('Output/Plots/Commanded Angular Velocities.jpg'))
-end
-
-
-% Commanded Angular Accelerations
-figure('name', "Commanded Angular Accelerations")
-plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 1)/TU^2, 'LineWidth', 1.5)
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 2)/TU^2, 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 3)/TU^2, 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$\dot{\omega}_{c,i} \ [rad/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-legend('\omega_{c1}', '\omega_{c2}', '\omega_{c3}', 'fontsize', 10, 'location', 'best')
-grid on
-if opt.saveplots
-    saveas(gcf, strcat('Output/Plots/Commanded Angular Accelerations.jpg'))
-end
-
-
-% Thrust Direction Components - xb
-figure('name', "Body Thrust Direction Components")
-plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 1), 'LineWidth', 1.5)
-hold on
-plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 2), 'LineWidth', 1.5)
-plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 3), 'LineWidth', 1.5)
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$x_{b,i}$', 'interpreter', 'latex', 'fontsize', 12)
-legend('x_{b1}', 'x_{b2}', 'x_{b3}', 'fontsize', 10, 'location', 'best')
-grid on
-if opt.saveplots
-    saveas(gcf, strcat('Output/Plots/Body Thrust Direction Components.jpg'))
+% Gammas and Betas
+if misalignment_type ~= "null"
+    figure('name', "Misalignment Angles")
+    subplot(1, 2, 1)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, rad2deg(betas), 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$\beta \ [deg]$', 'interpreter', 'latex', 'fontsize', 12)
+    grid on
+    subplot(1, 2, 2)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, rad2deg(gammas), 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$\gamma \ [deg]$', 'interpreter', 'latex', 'fontsize', 12)
+    grid on
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Beta and Gamma angles.jpg'))
+    end
 end
 
 
@@ -460,6 +404,79 @@ if opt.additional_plots
     ylabel('$\rho_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('Desired', 'Actual', 'fontsize', 10, 'location', 'best')
     grid on
+
+    % Thrust Direction Components - xb
+    figure('name', "Body Thrust Direction Components")
+    plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 1), 'LineWidth', 1.5)
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 2), 'LineWidth', 1.5)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, xb_AOCS_stack(:, 3), 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$x_{b,i}$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('x_{b1}', 'x_{b2}', 'x_{b3}', 'fontsize', 10, 'location', 'best')
+    grid on
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Body Thrust Direction Components.jpg'))
+    end
+
+    % Commanded Angular Velocities
+    figure('name', "Commanded Angular Velocities")
+    plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 1)/TU, 'LineWidth', 1.5)
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 2)/TU, 'LineWidth', 1.5)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, omega_c_rt_stack(:, 3)/TU, 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$\omega_{c,i} \ [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('\omega_{c1}', '\omega_{c2}', '\omega_{c3}', 'fontsize', 10, 'location', 'best')
+    grid on
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Commanded Angular Velocities.jpg'))
+    end
+    
+    
+    % Commanded Angular Accelerations
+    figure('name', "Commanded Angular Accelerations")
+    plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 1)/TU^2, 'LineWidth', 1.5)
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 2)/TU^2, 'LineWidth', 1.5)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, omegadot_c_rt_stack(:, 3)/TU^2, 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$\dot{\omega}_{c,i} \ [rad/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('\omega_{c1}', '\omega_{c2}', '\omega_{c3}', 'fontsize', 10, 'location', 'best')
+    grid on
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Commanded Angular Accelerations.jpg'))
+    end
+
+    % Natural vs AOCS Control Components
+    figure('name', "Natural vs AOCS Control Components")
+    subplot(1, 3, 1)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('$u_{r, ideal}$', '$u_{r, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+    grid on
+    subplot(1, 3, 2)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('$u_{\theta, ideal}$', '$u_{\theta, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+    grid on
+    subplot(1, 3, 3)
+    plot((tspan_ctrl-t0)*TU*sec2hrs, u_rt_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
+    hold on
+    plot((tspan_ctrl-t0)*TU*sec2hrs, u_AOCS_stack(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('$u_{h, ideal}$', '$u_{h, AOCS}$', 'Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+    grid on
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Natural vs AOCS Control Components.jpg'))
+    end
 
 end
 

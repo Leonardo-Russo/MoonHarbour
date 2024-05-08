@@ -1,6 +1,6 @@
 function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
-    rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, Ta, xb_LVLH] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, failure_times, clock, is_col, include_actuation)
+    rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, Ta, xb_LVLH, beta, gamma] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, omega_n, DU, TU, MU, branch, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, failure_times, clock, is_col, include_actuation)
 
 % -------------------- Orbital Control -------------------- %
 
@@ -228,16 +228,48 @@ alpha_opt = atan2(u_opt_hat(2), u_opt_hat(1));
 delta_opt = asin(u_opt_hat(3));
 
 if misalignment.type == "oscillating"
+    beta1 = misalignment.betas(1);
+    beta2 = misalignment.betas(2);
+    beta3 = misalignment.betas(3);
+    gamma1 = misalignment.gammas(1);
+    gamma2 = misalignment.gammas(2);
+    gamma3 = misalignment.gammas(3);
+    dts = misalignment.t2 - misalignment.t1;
+    branch = -1;
+    if branch == 1
 
+        if t >= misalignment.t1 && t <= misalignment.t1 + dts/2
+            beta = beta1;
+            gamma = gamma1;
+        elseif t > misalignment.t1 + dts/2 && t <= misalignment.t2
+            beta = (beta3+beta2)/2 + (beta3-beta2)/2 * sin(pi/dts * (t - misalignment.t2));
+            gamma = (gamma3+gamma2)/2 + (gamma3-gamma2)/2 * sin(pi/dts * (t - misalignment.t2));
+        else
+            error('Out of time boundaries in misalignment simulation.');
+        end
+
+    else
+
+        if t >= misalignment.t1 && t <= misalignment.t1 + dts/2
+            beta = (beta2+beta1)/2 + (beta2-beta1)/2 * sin(pi/dts * (t - misalignment.t1));
+            gamma = (gamma2+gamma1)/2 + (gamma2-gamma1)/2 * sin(pi/dts * (t - misalignment.t1));
+        elseif t > misalignment.t1 + dts/2 && t <= misalignment.t2
+            beta = (beta3+beta2)/2 + (beta3-beta2)/2 * sin(pi/dts * (t - misalignment.t2));
+            gamma = (gamma3+gamma2)/2 + (gamma3-gamma2)/2 * sin(pi/dts * (t - misalignment.t2));
+        else
+            error('Out of time boundaries in misalignment simulation.');
+        end
+
+    end
 else
     beta = misalignment.beta;
     gamma = misalignment.gamma;
-    
-    ur = un_norm * (sin(gamma) * cos(beta) * sin(alpha_opt) + sin(gamma) * sin(beta) * cos(delta_opt) * cos(alpha_opt) + cos(gamma) * cos(delta_opt) * cos(alpha_opt));
-    ut = un_norm * (-sin(gamma) * cos(beta) * cos(alpha_opt) + sin(gamma) * sin(beta) * sin(delta_opt) * sin(alpha_opt) + cos(gamma) * cos(delta_opt) * sin(alpha_opt));
-    uh = un_norm * (-sin(gamma) * sin(beta) * cos(delta_opt) + cos(gamma) * sin(delta_opt));
-    u = [ur; ut; uh];
 end
+
+ur = un_norm * (sin(gamma) * cos(beta) * sin(alpha_opt) + sin(gamma) * sin(beta) * cos(delta_opt) * cos(alpha_opt) + cos(gamma) * cos(delta_opt) * cos(alpha_opt));
+ut = un_norm * (-sin(gamma) * cos(beta) * cos(alpha_opt) + sin(gamma) * sin(beta) * sin(delta_opt) * sin(alpha_opt) + cos(gamma) * cos(delta_opt) * sin(alpha_opt));
+uh = un_norm * (-sin(gamma) * sin(beta) * cos(delta_opt) + cos(gamma) * sin(delta_opt));
+u = [ur; ut; uh];
 
 
 % ---------- Assign State Derivatives ---------- %

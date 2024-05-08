@@ -8,8 +8,9 @@ OptionsODE = odeset('RelTol', opt.RelTolODE, 'AbsTol', opt.AbsTolODE);
 
 % Define Thrust Misalignment
 misalignments = [];
-misalignment = define_misalignment_error(misalignment_type);
-misalignments = [misalignments; misalignment];
+misalignment0 = define_misalignment_error(misalignment_type);
+misalignments = [misalignments; misalignment0];
+
 
 tic
 %% Hyperparameters and Settings
@@ -163,7 +164,7 @@ if opt.compute_direct_approach
         pbar = waitbar(0, 'Performing the Direct Approach Rendezvous');
     end
     [tspan_ctrl_DA, TCC_ctrl_DA] = odeHamHPC(@(t, TCC) HybridPredictiveControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, u_lim, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment),...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, u_lim, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment0),...
         [t0, t0_backdrift_DA], TCC0, opt.N, @is_terminal_distance, event_odefun);
     
     % Check if Terminal Conditions are reached
@@ -177,11 +178,11 @@ if opt.compute_direct_approach
     
     % Retrive Final Kp
     [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, kp, ~] = HybridPredictiveControl(tspan_ctrl_DA(end), TCC_ctrl_DA(end, :), EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, u_lim, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment);
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, u_lim, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment0);
     
     % Perform Natural Feedback Control
     [tspan_temp, TCC_temp] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, kp, u_lim, DU, TU, misalignment, opt.show_progress, 0), ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, kp, u_lim, DU, TU, misalignment0, opt.show_progress, 0), ...
         [tspan_ctrl_DA(end), t0_backdrift_DA], TCC_ctrl_DA(end, :), opt.N, @is_terminal_distance);
     
     % Retrieve Final State Values
@@ -267,6 +268,7 @@ xb_AOCS_stack = [];
 u_rt_norm_stack = [];
 u_AOCS_norm_stack = [];
 TCC_PPs_stack = [];
+misalignments_AOCS = [];
 
 
 % Define Propagation Settings
@@ -337,22 +339,6 @@ for branch = 1 : max_branches
     % Define timespan
     tspan_rt = [t0_rt : prop_step : tf_rt]';
 
-    % Introduce Misalignment
-    if misalignment_type == "oscillating"
-        % if branch == 1
-        %     mis1 = define_misalignment_error(misalignment_type);
-        %     mis2 = define_misalignment_error(misalignment_type);
-        %     misalignment = struct("name", "Misalignment Parameters");
-        %     misalignment.betas = [mis1.beta; mis2.beta];
-        %     misalignment.gammas = [mis1.gamma; mis2.gamma];
-        %     misalignment.type = "oscillating";
-        %     misalignment.t1 = t0_rt;
-        % end
-    else
-        misalignment = define_misalignment_error(misalignment_type);
-    end
-    misalignments = [misalignments; misalignment];
-
     % Propagate to Final Propagation Time - without misalignment
     [~, TCC_rt] = ode113(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
         muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, define_misalignment_error("null"), 0, 1), ...
@@ -360,7 +346,7 @@ for branch = 1 : max_branches
 
     % % Propagate to Final Propagation Time
     % [~, TCC_rt] = ode113(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, misalignment, 0, 1), ...
+    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, define_misalignment_error("null"), 0, 1), ...
     %     tspan_rt, TCC_rt0, optODE_rt); 
 
     % Interpolate Trajectory
@@ -389,7 +375,7 @@ for branch = 1 : max_branches
     
         % Retrieve Thrust Acceleration in LVLH
         [~, ~, ~, ~, u_rt(i, :), ~, ~, ~, ~] = NaturalFeedbackControl(tspan_rt(i), TCC_rt(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, misalignment, 0, 0);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, define_misalignment_error("null"), 0, 0);
         xc_LVLH = u_rt(i, :)' / norm(u_rt(i, :));        % normalize to find xc versor in LVLH
         u_rt_norm(i) = norm(u_rt(i, :));        % normalize to find xc versor in LVLH
     
@@ -463,10 +449,6 @@ for branch = 1 : max_branches
 
     % ----- Propagate Trajectory AND Attitude ----- %
 
-    % QUESTION: quando ho l'engine failure il sistema che calcola la spinta
-    % da dare lo deve vedere? O deve essere come un malfunzionamento?
-    % avrebbe senso fare che non lo vede, ma sfaciola?
-
     % Temporary Engine Failure Setup
     if engine_failure_flag
         if branch == 1
@@ -497,15 +479,45 @@ for branch = 1 : max_branches
     qb0_0 = Y0_rt(14);
     qb_0 = Y0_rt(15:17);
     sign_qe0_0 = sign(qc0_0*qb0_0 + qc_0'*qb_0);        % needed for short rotation
+
+    % Introduce Misalignment
+    if misalignment_type == "oscillating"
+        if branch == 1
+            mis1 = define_misalignment_error(misalignment_type);
+            mis2 = define_misalignment_error(misalignment_type);
+            mis3 = define_misalignment_error(misalignment_type);
+            misalignment = struct("name", "Misalignment Parameters");
+            misalignment.betas = [mis1.beta; mis2.beta; mis3.beta];
+            misalignment.gammas = [mis1.gamma; mis2.gamma; mis3.gamma];
+            misalignment.type = "oscillating";
+            misalignment.t1 = t0_AOCS;
+            misalignment.t2 = tf_AOCS;
+            misalignment.t3 = tf_AOCS + (tf_AOCS - t0_AOCS);
+        else
+            mis1 = mis2;
+            mis2 = mis3;
+            mis3 = define_misalignment_error(misalignment_type);
+            misalignment = struct("name", "Misalignment Parameters");
+            misalignment.betas = [mis1.beta; mis2.beta; mis3.beta];
+            misalignment.gammas = [mis1.gamma; mis2.gamma; mis3.gamma];
+            misalignment.type = "oscillating";
+            misalignment.t1 = t0_AOCS;
+            misalignment.t2 = tf_AOCS;
+            misalignment.t3 = tf_AOCS + (tf_AOCS - t0_AOCS);
+        end
+    else
+        misalignment = define_misalignment_error(misalignment_type);
+    end
+    misalignments_AOCS = [misalignments_AOCS; misalignment];
     
     % % Perform the Attitude Propagation - ode113
     % [tspan_AOCS, Y_AOCS] = ode113(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
-    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, failure_times, opt.show_progress, 1, opt.actuation_flag), ...
+    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, omega_n, DU, TU, MU, branch, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, failure_times, opt.show_progress, 1, opt.include_actuation), ...
     %     tspan_AOCS, Y0_rt, optODE_AOCS);
     
     % Perform the Attitude Propagation - odeHam
     [tspan_AOCS, Y_AOCS] = odeHamHPC(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, failure_times, opt.show_progress, 0, opt.actuation_flag), ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, omega_n, DU, TU, MU, branch, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, failure_times, opt.show_progress, 0, opt.include_actuation), ...
         [t0_AOCS, tf_AOCS], Y0_rt, length(tspan_AOCS)-1);
     
     % Retrieve Attitude Evolution
@@ -527,7 +539,7 @@ for branch = 1 : max_branches
 
         % AOCS Reconstruction
         [~, ~, ~, ~, u_AOCS(j, :), ~, ~, ~, ~, Tc_AOCS(j, :), Ta_AOCS(j, :), xb_AOCS(j, :)] = AOCS(tspan_AOCS(j), Y_AOCS(j, :)', EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, omega_n, DU, TU, MU, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, failure_times, 0, 1, opt.actuation_flag);
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, omega_n, DU, TU, MU, branch, TCC_PPs, omega_cPPs_rt, omegadot_cPPs_rt, Q_N2C_PPs_rt, sign_qe0_0, misalignment, failure_times, 0, 1, opt.include_actuation);
 
         % Attitude Reconstruction
         Q_N2C_AOCS(j, :) = ppsval(Q_N2C_PPs_rt, tspan_AOCS(j));
@@ -853,6 +865,8 @@ q0_LVLHt2MCI = zeros(M_ctrl, 1);
 q_LVLHt2MCI = zeros(M_ctrl, 3);
 Tc = zeros(M_ctrl, 3);
 Ta = zeros(M_ctrl, 3);
+betas = zeros(M_ctrl, 1);
+gammas = zeros(M_ctrl, 1);
 
 acc = zeros(M, 3);
 
@@ -877,7 +891,7 @@ for i = 1 : size(RHO_LVLH, 1)
         
         [dY, ~, ~, ~, u(i, :), ~, ~, ~, ~, f_norms(i), kp_store(i), ~] = ...
             HybridPredictiveControlPostProcessing(tspan_ctrl_DA(i), TCC_ctrl_DA(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, stopSaturationTime, misalignment);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, stopSaturationTime, misalignment0);
         RHOd_LVLH(i, :) = ppsval(RHOdPPsLVLH_DA, tspan(i));
         u_norms(i) = norm(u(i, :));    
     
@@ -896,9 +910,9 @@ for i = 1 : size(RHO_LVLH, 1)
         end
         
         % AOCS Reconstruction
-        [~, ~, ~, ~, u(i, :), ~, ~, ~, f_norms(i), Tc(s, :), Ta(s, :), ~] = ...
+        [~, ~, ~, ~, u(i, :), ~, ~, ~, f_norms(i), Tc(s, :), Ta(s, :), ~, betas(s), gammas(s)] = ...
             AOCS(tspan_ctrl(s), Y_ctrl(s, :)', EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T(:, k), kp, u_lim, omega_n, DU, TU, MU, TCC_PPs_stack(:, k), omega_cPPs_rt_stack(:, k), omegadot_cPPs_rt_stack(:, k), Q_N2C_PPs_rt_stack(:, k), sign_qe0_0_stack(k), misalignment, failure_times, 0, 1, opt.actuation_flag);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_T(:, k), kp, u_lim, omega_n, DU, TU, MU, k, TCC_PPs_stack(:, k), omega_cPPs_rt_stack(:, k), omegadot_cPPs_rt_stack(:, k), Q_N2C_PPs_rt_stack(:, k), sign_qe0_0_stack(k), misalignments_AOCS(k), failure_times, 0, 1, opt.include_actuation);
             
         kp_store(i) = kp;
         u_norms(i) = norm(u(i, :));
