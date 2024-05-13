@@ -1,7 +1,7 @@
 function [beta_dist, gamma_dist] = define_distributions(MC)
 
 % Define gamma as a normally distributed variable
-sigma_gamma = deg2rad(2);           % gamma standard deviation
+sigma_gamma = deg2rad(1);           % gamma standard deviation
 mu_gamma = 0;                       % gamma mean value
 truncation_gamma = 3*sigma_gamma;   % gamma truncation limit
 

@@ -1,4 +1,4 @@
-function fmain(workspace_path, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag)
+function fmain(sampling_time, workspace_path, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag)
 
 
 % Retrieve Options
@@ -272,8 +272,8 @@ misalignments_AOCS = [];
 
 
 % Define Propagation Settings
-dt_regen = 1*60/TU;             % renegerative propagation interval
-dt_min = 0.5*60/TU;               % minimum propagation interval
+dt_regen = sampling_time/TU;               % renegerative propagation interval
+dt_min = 1/TU;                  % minimum propagation interval
 prop_step = 1/TU;               % propagation time step
 max_branches = 500;             % maximum n° of branches of the regenerative trajectory
 optODE_rt = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);

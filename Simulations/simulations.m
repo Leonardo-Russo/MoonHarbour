@@ -32,16 +32,24 @@ opt.AbsTolODE = 1e-6;
 % Define the n° of simulations
 MC = 10;
 
+% numDesiredWorkers = 4; % Example: set to desired number of workers
+% pool = parpool(numDesiredWorkers); % Starts a pool with the specified number of workers
+
 % Define Simulation Options
-sim_dir = "misalignment_oscillating";
+sim_dir = "misalignment_15s";
 mkdir(strcat("Results/", sim_dir));
+sampling_time = 15;                     % seconds
+verbose = true;
+misalignment_type = "oscillating";
+state_perturbation_flag = false;
+engine_failure_flag = false;
 
-for mc = 1 : MC
+for i = 2 : MC
 
-    workspace_path = strcat("Results/", sim_dir, "/", sim_dir, "-", string(mc), ".mat");
+    workspace_path = strcat("Results/", sim_dir, "/", sim_dir, "-", string(i), ".mat");
 
-    fmain(workspace_path, false, "oscillating", false, false);
+    fmain(sampling_time, workspace_path, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
 
-    disp(mc);
+    disp(i);
 
 end

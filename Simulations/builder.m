@@ -12,7 +12,7 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id = "misalignment_oscillating";    % specific results identifier
+sim_id = "misalignment_15s";    % specific results identifier
 
 
 %% Extract the Results
@@ -44,11 +44,13 @@ for k = 1 : n_sims
     % Extract the simulation index from the filename
     filename = files(k).name;
     index_str = regexp(filename, '\d+', 'match');
-    index = str2double(index_str{1});  % Converts the string to a double
+    index = str2double(index_str{end});  % Converts the string to a double
     
     try
         
         temp = load(fullfile(files(k).folder, files(k).name), 'RHO_LVLH', 'M_ctrl_DA', 'DU', 'RHOd_LVLH', 'dist', 'vel', 'deltaState', 'failure_times', 'misalignments');
+
+        is_safe = check_min_distance(fullfile(files(k).folder, files(k).name), 9.8);
 
         data(index).color = cmap(index, :);
         data(index).RHO_LVLH = temp.RHO_LVLH;
@@ -62,6 +64,10 @@ for k = 1 : n_sims
             data(index).status = true;
         else
             data(index).status = false;
+        end
+
+        if ~is_safe
+            data(index).status = data(index).status - 0.5;
         end
     
         table(index, :) = [index, data(index).status, temp.deltaState, norm(temp.deltaState(1:3)), norm(temp.deltaState(4:6))];
@@ -84,7 +90,7 @@ save(strcat(sim_dir, "data.mat"));
 close all
 
 % Create the Results table
-results_table = array2table(table, 'VariableNames', {'id', 'status', 'dr (m)', 'dtheta (m)', 'dh (m)', 'dv_r (m/s)', 'dv_theta (m/s)', 'dv_h (m/s)', 'delta_rho (m)', 'delta_rhodot (m)'});
+results_table = array2table(table, 'VariableNames', {'id', 'status', 'dr (m)', 'dtheta (m)', 'dh (m)', 'dv_r (m/s)', 'dv_theta (m/s)', 'dv_h (m/s)', 'delta_rho (m)', 'delta_rhodot (m/s)'});
 excel_filepath = fullfile(sim_dir, strcat(sim_id, ".xlsx"));
 writetable(results_table, excel_filepath);
 disp(results_table);
@@ -92,6 +98,7 @@ fprintf('Results have been saved to: "%s"\n', excel_filepath);
 
 fprintf('\nFinal Position Error:\nmean = %.6f mm    std = %.6f mm\n\nFinal Velocity Error:\nmean = %.6f mm/s    std = %.6f mm/s\n', mean(table(:, 9))*1e3, std(table(:, 9))*1e3, mean(table(:, 10))*1e3, std(table(:, 10))*1e3)
 
+return
 terminal_traj = figure('name', 'Terminal Chaser Trajectory in LVLH Space', 'WindowState', 'maximized');
 % title('Terminal Chaser LVLH Trajectory')
 for k = 1 : n_sims

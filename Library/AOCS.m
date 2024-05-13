@@ -178,7 +178,7 @@ Mc = 0;         % no external torques applied on the chaser
 % Compute Commanded Torque
 Tc = skew(w)*Jc*w - Mc + Jc*wc_dot - Jc*invA*B*wd - sign_qe0_0*Jc*invA*qe;
 
-Tc_max = 0.8/(1e6*DU^2/TU^2*MU);      % 0.8 Nm
+Tc_max = 1/(1e6*DU^2/TU^2*MU);          % 1 Nm
 if norm(Tc) > Tc_max
     Tc = Tc_max * (Tc/norm(Tc));
 end
@@ -189,20 +189,22 @@ omegas_dot = -A' / (A * A') * Tc;
 if include_actuation
 
     omegas_max = 3000 * 2*pi/60 * TU;   % 3000 rpm
+    omegasdot_max = 0.8/(1e6*DU^2/TU^2*MU) / Is;        % 0.8 Nm / Is kg m^2
     for s = 1 : n_wheels
+
+        if abs(omegas_dot(s)) > omegasdot_max
+            omegas_dot(s) = omegasdot_max * sign(omegas_dot(s));
+        end
+
         if omegas(s) > omegas_max && omegas_dot(s) > 0
             omegas_dot(s) = 0;
         elseif omegas(s) < -omegas_max && omegas_dot(s) < 0
             omegas_dot(s) = 0;
         end
+
     end
     
     Ta = - skew(w)*A*omegas - A*omegas_dot;
-    
-    Ta_max = 0.8/(1e6*DU^2/TU^2*MU);      % 0.8 Nm
-    if norm(Ta) > Ta_max
-        Ta = Ta_max * (Ta/norm(Ta));
-    end
 
 else
 

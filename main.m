@@ -25,12 +25,13 @@ opt.N = 1000;                   % n° of points for the Interpolation
 opt.RelTolODE = 1e-7;           % options for ode()
 opt.AbsTolODE = 1e-6;
 
+sampling_time = 30;                     % seconds
 verbose = true;
 misalignment_type = "oscillating";
 state_perturbation_flag = false;
 engine_failure_flag = false;
 
-fmain('Data/Utils/main.mat', verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
+fmain(sampling_time, 'Data/Utils/main.mat', verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
 
 
 %% Visualize the Results
