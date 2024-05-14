@@ -1,13 +1,11 @@
-function is_safe = check_min_distance(path, min_dist)
+function is_safe = check_min_distance(dist, DU, M_ctrl_DA, M_ctrl, min_dist)
 % Description: this is a helper function to verify that the emergency
 % sphere is not cut by too much. The tolerance is set to 20cm, meaning that
 % if the distance is below 9.8m, then it will flag this.
 
-if nargin < 2
+if nargin < 5
     min_dist = 9.8;
 end
-
-load(path, 'DU', 'dist', 'M_ctrl_DA', 'M_ctrl');
 
 % fprintf("'dist' is a %.0fx1 vector.\n\n", length(dist));
 

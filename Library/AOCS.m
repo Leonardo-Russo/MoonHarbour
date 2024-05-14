@@ -246,8 +246,11 @@ if misalignment.type == "oscillating"
         elseif t > misalignment.t1 + dts/2 && t <= misalignment.t2
             beta = (beta3+beta2)/2 + (beta3-beta2)/2 * sin(pi/dts * (t - misalignment.t2));
             gamma = (gamma3+gamma2)/2 + (gamma3-gamma2)/2 * sin(pi/dts * (t - misalignment.t2));
-        else
-            error('Out of time boundaries in misalignment simulation.');
+        % else
+        %     disp(time_elapsed(t, t0, TU));
+        %     disp(time_elapsed(misalignment.t1, t0, TU));
+        %     disp(time_elapsed(misalignment.t2, t0, TU));
+        %     error('Out of time boundaries in misalignment simulation.');
         end
 
     else
@@ -258,8 +261,11 @@ if misalignment.type == "oscillating"
         elseif t > misalignment.t1 + dts/2 && t <= misalignment.t2
             beta = (beta3+beta2)/2 + (beta3-beta2)/2 * sin(pi/dts * (t - misalignment.t2));
             gamma = (gamma3+gamma2)/2 + (gamma3-gamma2)/2 * sin(pi/dts * (t - misalignment.t2));
-        else
-            error('Out of time boundaries in misalignment simulation.');
+        % else
+        %     disp(time_elapsed(t, t0, TU));
+        %     disp(time_elapsed(misalignment.t1, t0, TU));
+        %     disp(time_elapsed(misalignment.t2, t0, TU));
+        %     error('Out of time boundaries in misalignment simulation.');
         end
 
     end

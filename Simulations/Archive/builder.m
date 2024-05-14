@@ -45,6 +45,8 @@ for k = 1 : n_sims
     filename = files(k).name;
     index_str = regexp(filename, '\d+', 'match');
     index = str2double(index_str{end});  % Converts the string to a double
+
+    % this might have a problem with duplicates
     
     try
         
