@@ -41,19 +41,21 @@ if isempty(pool)
 end
 
 % Define Simulation Options
-sim_id = "combined_15s";
+sim_id = "combined_10s";
 mkdir(strcat("Results/", sim_id));
-sampling_time = 15;                     % seconds
+sampling_time = 10;                     % seconds
 verbose = true;
 misalignment_type = "oscillating";
 state_perturbation_flag = true;
 engine_failure_flag = true;
+include_actuation = false;
 
 parfor (mc = 1 : MC, pool.NumWorkers)
+% for mc = 1 : MC
 
-    try
+    % try
 
-        [RHO_LVLH, M_ctrl_DA, M_ctrl, DU, RHOd_LVLH, dist, vel, deltaState, failure_times, misalignments] = parfmain(sampling_time, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
+        [RHO_LVLH, M_ctrl_DA, M_ctrl, DU, RHOd_LVLH, dist, vel, deltaState, failure_times, misalignments] = parfmain(sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
 
         is_safe = check_min_distance(dist, DU, M_ctrl_DA, M_ctrl, 9.8);
 
@@ -77,13 +79,13 @@ parfor (mc = 1 : MC, pool.NumWorkers)
     
         table(mc, :) = [mc, data(mc).status, deltaState, norm(deltaState(1:3)), norm(deltaState(4:6))];
 
-    catch
-
-        fprintf('Simulation n° %2d was not successful.\n', mc);
-        data(mc).status = -1;
-        table(mc, :) = [mc, data(mc).status, zeros(1, 8)];
-
-    end
+    % catch
+    % 
+    %     fprintf('Simulation n° %2d was not successful.\n', mc);
+    %     data(mc).status = -1;
+    %     table(mc, :) = [mc, data(mc).status, zeros(1, 8)];
+    % 
+    % end
 
 
 end

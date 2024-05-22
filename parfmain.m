@@ -1,4 +1,8 @@
-function [RHO_LVLH, M_ctrl_DA, M_ctrl, DU, RHOd_LVLH, dist, vel, deltaState, failure_times, misalignments] = parfmain(sampling_time, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag)
+function [RHO_LVLH, M_ctrl_DA, M_ctrl, DU, RHOd_LVLH, dist, vel, deltaState, failure_times, misalignments] = parfmain(sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path)
+
+if nargin < 7
+    workspace_path = "none";
+end
 
 % Define Options
 global opt
@@ -8,7 +12,7 @@ opt.create_animation = false;
 opt.show_progress = false;
 opt.compute_target = true;
 opt.compute_direct_approach = true;
-opt.include_actuation = false;
+opt.include_actuation = include_actuation;
 opt.additional_plots = false;
 opt.showgui = false;
 opt.N = 1000;                   % n° of points for the Interpolation
@@ -248,8 +252,8 @@ misalignments_AOCS = [];
 
 % Define Propagation Settings
 dt_regen = sampling_time/TU;               % renegerative propagation interval
-dt_min = 1/TU;                  % minimum propagation interval
 prop_step = 1/TU;               % propagation time step
+dt_min = 2*prop_step;                  % minimum propagation interval
 max_branches = 500;             % maximum n° of branches of the regenerative trajectory
 optODE_rt = odeset('RelTol', 1e-9, 'AbsTol', 1e-9);
 optODE_AOCS = odeset('RelTol', 1e-6, 'AbsTol', 1e-6);
@@ -314,15 +318,16 @@ for branch = 1 : max_branches
     % Define timespan
     tspan_rt = [t0_rt : prop_step : tf_rt]';
 
-    % Propagate to Final Propagation Time - without misalignment
+    % Check that tspan has more than two elements -> otherwise ode()
+    % interprets it incorrectly!
+    if length(tspan_rt) < 3
+        tspan_rt = [t0_rt; (t0_rt+tf_rt)/2; tf_rt];
+    end
+
+    % Propagate to Final Propagation Time
     [~, TCC_rt] = ode113(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
         muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, define_misalignment_error("null"), 0, 1), ...
         tspan_rt, TCC_rt0, optODE_rt);
-
-    % % Propagate to Final Propagation Time
-    % [~, TCC_rt] = ode113(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-    %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, define_misalignment_error("null"), 0, 1), ...
-    %     tspan_rt, TCC_rt0, optODE_rt); 
 
     % Interpolate Trajectory
     TCC_PPs = get_statePP(tspan_rt, TCC_rt);
@@ -436,8 +441,8 @@ for branch = 1 : max_branches
     % Define Time Domain
     t0_AOCS = t0_rt;
     tf_AOCS = min(t0_rt + dt_regen, tf_rt);
-    branch_squish_tol = prop_step;
-    if tf_rt - tf_AOCS < branch_squish_tol
+    branch_squish_tol = 3*prop_step + 1e-3/TU;  % odeHam needs always tspans of 4 elements at least, this guarantees it
+    if tf_rt - tf_AOCS <= branch_squish_tol
         tf_AOCS = tf_rt;
     end
     tspan_AOCS = [t0_AOCS : prop_step : tf_AOCS]';
@@ -467,7 +472,7 @@ for branch = 1 : max_branches
             misalignment.type = "oscillating";
             misalignment.t1 = t0_AOCS;
             misalignment.t2 = tf_AOCS;
-            misalignment.t3 = tf_AOCS + (tf_AOCS - t0_AOCS);
+            misalignment.t3 = tf_AOCS + (tf_AOCS - t0_AOCS); % this is a problem when going from shorter to longer
         else
             mis1 = mis2;
             mis2 = mis3;
@@ -939,6 +944,8 @@ deltaState = desState-finalState;
 
 runtime = toc;
 
-% save(workspace_path);
+if workspace_path ~= "none"
+    save(workspace_path);
+end
 
 end

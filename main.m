@@ -10,28 +10,15 @@ addpath('Data/Planets/')
 addpath('Data/Materials/')
 addpath('Data/Ephemeris/')
 
-% Define Options
-global opt
-opt = struct('name', "Options");
-opt.saveplots = false;
-opt.create_animation = false;
-opt.show_progress = false;
-opt.compute_target = true;
-opt.compute_direct_approach = true;
-opt.include_actuation = false;
-opt.additional_plots = false;
-opt.showgui = false;
-opt.N = 1000;                   % n° of points for the Interpolation
-opt.RelTolODE = 1e-7;           % options for ode()
-opt.AbsTolODE = 1e-6;
-
-sampling_time = 30;                     % seconds
+sampling_time = 10;                     % seconds
+include_actuation = false;
 verbose = true;
-misalignment_type = "oscillating";
+misalignment_type = "null";
 state_perturbation_flag = false;
 engine_failure_flag = false;
+workspace_path = "Data/Utils/main.mat";
 
-fmain(sampling_time, 'Data/Utils/main.mat', verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
+parfmain(sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path);
 
 
 %% Visualize the Results

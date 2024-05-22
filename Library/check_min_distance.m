@@ -12,7 +12,7 @@ end
 dist = dist * DU;
 
 is_safe = 1;
-for i = 1 : M_ctrl_DA + M_ctrl
+for i = 1 : M_ctrl_DA + M_ctrl - 1
 
     if dist(i) < min_dist * 1e-3
         is_safe = 0;

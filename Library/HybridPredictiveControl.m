@@ -171,6 +171,8 @@ if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0
     if crosses <= 1         % this is a cross from above, that's ok
         verifiedTimes(index) = 1;
         index = index +1;
+        % stopPrediction = 1;
+        % stopSaturationTime = t;
     elseif crosses >= 2     % this means we have at least a cross from below, i. e. the threshold has been overcome by the feedback reaction
         stopPrediction = 1;
         stopSaturationTime = t;
