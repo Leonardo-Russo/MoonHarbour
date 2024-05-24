@@ -3,6 +3,8 @@
 close all
 clear
 clc
+
+% DEVI FARE HPControl
                                                                                 
 addpath('Library/')
 addpath('Data/')
@@ -149,8 +151,7 @@ t0_backdrift_DA = tspan_back_DA(end);
 prediction_interval_DA = 120;                  % s - one prediction every 2 minutes
 prediction_dt_DA = prediction_interval_DA/TU;     % adim - prediction interval adimensionalized
 
-% prediction_maxlength_DA = fix(seconds(total_time)/prediction_interval_DA);        % max length of the predictive controls
-prediction_maxlength_DA = 2;
+prediction_maxlength_DA = fix(seconds(total_time)/prediction_interval_DA);        % max length of the predictive controls
 check_times_DA = zeros(prediction_maxlength_DA, 1);           % gets all the times at which one should check in continue to saturate by future prediction
 
 for k = 1 : prediction_maxlength_DA
@@ -159,6 +160,8 @@ end
 
 prediction_delta_DA = (30*60)/TU;      % predictive propagation of 30 min forward
 N_inner_DA = round(prediction_delta_DA/dt_ref) - 1;       % n° of points in the inner propagation
+
+t_sat = t0 + 80*60/TU;
 
 
 %% Direct Approach: Perform Chaser Rendezvous Manoeuvre
@@ -177,15 +180,19 @@ event_odefun = 1;       % 1 means it'll stop at saturation
     [t0, t0_backdrift_DA], TCC0, opt.N, @noevent, event_odefun);
 
 % [tspan_ctrl_DA, TCC_ctrl_DA] = odeHamHPC(@(t, TCC) FixedSaturationControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-%     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, u_lim, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment0),...
+%     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, u_lim, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment0, t_sat),...
 %     [t0, t0_backdrift_DA], TCC0, opt.N, @noevent, event_odefun);
 
 % Define stopSaturationTime
 stopSaturationTime = tspan_ctrl_DA(end);
+M_original_DA = length(tspan_ctrl_DA);
 
 % Retrive Final Kp
 [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, kp, ~] = HybridPredictiveControl(tspan_ctrl_DA(end), TCC_ctrl_DA(end, :), EarthPPsMCI, SunPPsMCI, muM, ...
     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, u_lim, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment0);
+
+% [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, kp, ~] = FixedSaturationControl(tspan_ctrl_DA(end), TCC_ctrl_DA(end, :), EarthPPsMCI, SunPPsMCI, muM, ...
+%     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, u_lim, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment0, t_sat);
 
 % Perform Natural Feedback Control
 [tspan_temp, TCC_temp] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
@@ -211,16 +218,30 @@ kp_temp = zeros(M_ctrl_DA, 1);
 
 for k = 1 : M_ctrl_DA
 
-    % [~, ~, ~, ~, u_temp(k, :), ~, ~, ~, f_norm_temp(k), kp_temp(k)] = AdaptableFeedbackControl(tspan_ctrl_DA(k), TCC_ctrl_DA(k, :), EarthPPsMCI, SunPPsMCI, muM, ...
-    % muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, RHOdPPsLVLH_DA, DU, TU);
+    if k <= M_original_DA
+        
+        % [~, ~, ~, ~, u_temp(k, :), ~, ~, ~, f_norm_temp(k), kp_temp(k)] = AdaptableFeedbackControl(tspan_ctrl_DA(k), TCC_ctrl_DA(k, :), EarthPPsMCI, SunPPsMCI, muM, ...
+        % muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, RHOdPPsLVLH_DA, DU, TU);
     
-    [~, ~, ~, ~, u_temp(k, :), ~, ~, ~, ~, f_norm_temp(k), kp_temp(k), ~] = ...
-        HybridPredictiveControlPostProcessing(tspan_ctrl_DA(k), TCC_ctrl_DA(k, :), EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, stopSaturationTime, misalignment0);
+        % [~, ~, ~, ~, u_temp(k, :), ~, ~, ~, ~, f_norm_temp(k), kp_temp(k), ~] = ...
+        %     HybridPredictiveControlPostProcessing(tspan_ctrl_DA(k), TCC_ctrl_DA(k, :), EarthPPsMCI, SunPPsMCI, muM, ...
+        %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, DU, TU, stopSaturationTime, misalignment0);
+
+        [~, ~, ~, ~, u_temp(k, :), ~, ~, ~, ~, f_norm_temp(k), kp_temp(k), ~] = ...
+            FixedSaturationControl(tspan_ctrl_DA(k), TCC_ctrl_DA(k, :), EarthPPsMCI, SunPPsMCI, muM, ...
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, u_lim, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment0, t_sat);
+
+    else
+
+        [~, ~, ~, ~, u_temp(k, :), ~, ~, ~, f_norm_temp(k)] = NaturalFeedbackControl(tspan_ctrl_DA(k), TCC_ctrl_DA(k, :), EarthPPsMCI, SunPPsMCI, muM, ...
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, kp, u_lim, DU, TU, misalignment0, 0, 0);
+
+    end
     
     u_norm_temp(k) = norm(u_temp(k, :));
 
 end
+
 
 % Control Norm
 fig = figure('name', 'Control Thrust');
@@ -234,9 +255,181 @@ title('Control Norm')
 grid on
 legend([p1, p2, p3], '$|u|$', '$u_{max}$', '$f$','Location', 'best', 'Fontsize', 12, 'Interpreter', 'latex');
 
+% Control Norm
+fig2 = figure('name', 'Control Gain K');
+p1 = plot((tspan_ctrl_DA-t0)*TU*sec2hrs, kp_temp, 'Color', '#4195e8', 'LineWidth', 1.5);
+xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$ $', 'interpreter', 'latex', 'fontsize', 12)
+title('Control Gain K')
+grid on
+
 % savefig(fig, 'natural_control_norm.fig');
 % print(fig, 'natural_control_norm.png', '-dpng', '-r300');          % 300 DPI
 
-savefig(fig, 'hp_control_norm2.fig');
-print(fig, 'hp_control_norm2.png', '-dpng', '-r300');          % 300 DPI
+savefig(fig, 'hp_control_norm.fig');
+print(fig, 'hp_control_norm.png', '-dpng', '-r300');          % 300 DPI
+
+% savefig(fig, 'saturated_control_80m.fig');
+% print(fig, 'saturated_control_80m.png', '-dpng', '-r300');          % 300 DPI
+
+
+
+
+
+
+function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
+    rhodotd_LVLH, rhoddotd_LVLH, f_norm] = NaturalFeedbackControl(t, ...
+    TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, is_col)
+
+
+% ----- Natural Relative Motion ----- %
+
+global pbar
+
+% Initialize State Derivative
+dTCC = zeros(13, 1); 
+    
+% Retrieve Data from Input
+
+if is_col
+    MEEt = TCC(1:6);
+    RHO_LVLH = TCC(7:12);
+else
+    MEEt = TCC(1:6)';
+    RHO_LVLH = TCC(7:12)';
+end
+x7 = TCC(13);
+
+% Retrieve RHO State Variables
+rho_LVLH = RHO_LVLH(1:3);
+rhodot_LVLH = RHO_LVLH(4:6);
+
+% Retrieve Target State in MCI
+COEt = MEE2COE(MEEt')';
+Xt_MCI = COE2rvPCI(COEt', muM)';
+rt_MCI = Xt_MCI(1:3);
+
+% Convert RHO state into MCI
+RHO_MCI = rhoLVLH2MCI(RHO_LVLH, Xt_MCI, t, EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
+
+% Compute Chaser State in MCI
+Xc_MCI = Xt_MCI + RHO_MCI;
+COEc = rvPCI2COE(Xc_MCI', muM)';
+MEEc = COE2MEE(COEc')';
+rc_MCI = Xc_MCI(1:3);
+
+% Target's Third, Fourth Body and Moon Harmonics Perturbing Accelerations
+a34Bt = ThirdFourthBody(MEEt, t, EarthPPsMCI, SunPPsMCI, muE, muS);
+aG_Mt = MoonHarmPerts(MEEt, MoonPPsECI, t, muM, deltaE, psiM, deltaM);
+apt_LVLHt = a34Bt + aG_Mt;
+
+% Chaser's Third, Fourth Body and Moon Harmonics Perturbing Accelerations
+a34Bc = ThirdFourthBody(MEEc, t, EarthPPsMCI, SunPPsMCI, muE, muS);
+aG_Mc = MoonHarmPerts(MEEc, MoonPPsECI, t, muM, deltaE, psiM, deltaM);
+apc_LVLHc = a34Bc + aG_Mc;
+
+% Convert Perturbating Accelerations into MCI
+[R_MCI2LVLHt, ~] = get_rotMCI2LVLH(Xt_MCI, t, EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
+[R_LVLHc2MCI, ~] = get_rotLVLH2MCI(Xc_MCI, t, EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
+
+apc_MCI = R_LVLHc2MCI*apc_LVLHc;
+
+% Compute Angular Velocity of LVLH wrt MCI
+[~, ~, incl, ~, omega, nu] = S2C(COEt');
+[~, ~, incl_dot, Omega_dot, omega_dot, nu_dot] = S2C(get_COEdots(COEt', Xt_MCI', apt_LVLHt));
+
+theta_t = omega + nu;
+theta_t_dot = omega_dot + nu_dot;
+
+omega_LVLH = [Omega_dot*sin(incl)*sin(theta_t) + incl_dot*cos(theta_t); ...
+              Omega_dot*sin(incl)*cos(theta_t) - incl_dot*sin(theta_t); ...
+              Omega_dot*cos(incl) + theta_t_dot];
+
+% Compute Angular Acceleration of LVLH wrt MCI
+omegadot_LVLH = ppsval(omegadotPPsLVLH, t);
+
+% Rotate the Necessary Vectors
+rt_LVLH = R_MCI2LVLHt * rt_MCI;     % this is -r_t2M^(LVLH)
+apc_LVLHt = R_MCI2LVLHt * apc_MCI;
+
+% MEE Propagation Quantities
+eta = get_eta(MEEt);
+G = get_G(MEEt, muM, eta);
+
+% Relative Motion Propagation Quantities
+rt = norm(rt_LVLH);
+rc = norm(rc_MCI);
+q = (dot(rho_LVLH, rho_LVLH) + 2*dot(rho_LVLH, rt_LVLH))/rt^2;
+
+f = -2*cross(omega_LVLH, rhodot_LVLH) - cross(omegadot_LVLH, rho_LVLH) - cross(omega_LVLH, cross(omega_LVLH, rho_LVLH)) + muM/rt^3*((q*(2+q+(1+q)^(1/2)))/((1+q)^(3/2)*((1+q)^(1/2)+1)))*rt_LVLH - muM/rc^3*rho_LVLH + apc_LVLHt - apt_LVLHt;
+f_norm = norm(f);
+
+
+    
+% ----- Natural Feedback Control ----- %
+
+% Retrieve Reference Trajectory
+RHOd_LVLH = ppsval(ppXd, t);
+rhod_LVLH = RHOd_LVLH(1:3);
+rhodotd_LVLH = RHOd_LVLH(4:6);
+rhoddotd_LVLH = RHOd_LVLH(7:9);
+
+% Define Gain Matrices
+Kp = kp*eye(3,3);
+zeta = 1;       % condition of critical damping
+kd = 2*zeta*sqrt(kp);
+Kd = kd*eye(3,3);
+
+% Compute the Nominal Control Thrust
+un = -f + rhoddotd_LVLH - Kd*(rhodot_LVLH-rhodotd_LVLH) - Kp*(rho_LVLH -rhod_LVLH);
+un_hat = un / norm(un);
+un_norm = norm(un);
+% if un_norm > u_lim
+%     un_norm = u_lim;
+% end
+% HO LEVATO LA SATURAZIONE EH
+
+
+% Apply Thrust Misalignment
+alphan = atan2(un_hat(2), un_hat(1));
+deltan = asin(un_hat(3));
+beta = misalignment.beta;
+gamma = misalignment.gamma;
+
+ur = un_norm * (sin(gamma) * cos(beta) * sin(alphan) + sin(gamma) * sin(beta) * cos(deltan) * cos(alphan) + cos(gamma) * cos(deltan) * cos(alphan));
+ut = un_norm * (-sin(gamma) * cos(beta) * cos(alphan) + sin(gamma) * sin(beta) * sin(deltan) * sin(alphan) + cos(gamma) * cos(deltan) * sin(alphan));
+uh = un_norm * (-sin(gamma) * sin(beta) * cos(deltan) + cos(gamma) * sin(deltan));
+u = [ur; ut; uh];
+
+% Compute Mass Ratio Derivative
+c = 30/DU*TU;           % effective exhaust velocity = 30 km/s
+x7_dot = - x7*norm(u)/c;
+
+
+
+% Assign State Derivatives
+dTCC(1:6) = G*apt_LVLHt;
+dTCC(6) = dTCC(6) + sqrt(muM/MEEt(1)^3)*eta^2;
+dTCC(7:9) = rhodot_LVLH;
+dTCC(10:12) = f + u;
+dTCC(13) = x7_dot;
+
+
+% Clock for the Integration
+if clock
+    Day = 86400;  % seconds in a day
+    Hour = 3600;  % seconds in an hour
+    Min = 60;     % seconds in a minute
+    tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
+    tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
+    tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
+    timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
+    waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
+    waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
+end
+
+end
+
+
 

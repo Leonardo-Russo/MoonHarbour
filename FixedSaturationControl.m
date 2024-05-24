@@ -1,6 +1,6 @@
 function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
-    rhodotd_LVLH, rhoddotd_LVLH, f, f_norm, kp_out, k_type] = HybridPredictiveControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, ...
-    MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, u_lim, DU, TU, checkTimes, Delta_t, N_inner_integration, misalignment)
+    rhodotd_LVLH, rhoddotd_LVLH, f, f_norm, kp_out, k_type] = FixedSaturationControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, ...
+    MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, u_lim, DU, TU, checkTimes, Delta_t, N_inner_integration, misalignment, t_sat)
 % Description: ...
 
 
@@ -13,9 +13,6 @@ if t == t0
     stopPrediction = 0;
     u_max = 0;
 end
-
-debug = 0;
-clock = 0;      % set to 0 to avoid clock inside predictive propagation
 
 
 % ----- Natural Relative Motion ----- %
@@ -111,83 +108,84 @@ threshold = 0.9*u_limit;
 % ADJUSTMENT
 index = min(index, length(checkTimes));
 
-% Predictive Forward Propagation
-if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0
-    
-    % Define Intermediate Time Domain
-    t0_int = t;
-    tf_int = t + Delta_t;
+% % Predictive Forward Propagation
+% if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0
+% 
+%     % Define Intermediate Time Domain
+%     t0_int = t;
+%     tf_int = t + Delta_t;
+% 
+%     % Perform the Propagation
+%     [tspan, ControlledRelativeState] = odeHamHPC(@(t, state) NaturalFeedbackControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
+%         muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, 0), ...
+%         [t0_int, tf_int], TCC, N_inner_integration);
+% 
+%     % Predictive Propagation Post-Processing
+%     len = length(tspan);
+%     u_future = zeros(3,len);
+%     u_norms = zeros(len,1);
+%     for s = 1 : len
+%         [~, ~, ~, ~, u_future(:,s), ...
+%             ~, ~, ~, ~] = NaturalFeedbackControl(tspan(s), ...
+%             ControlledRelativeState(s,:), EarthPPsMCI, SunPPsMCI, muM, ...
+%             muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, 0);
+%         u_norms(s) = norm(u_future(:,s));
+%     end
+% 
+%     if debug
+% 
+%         close all
+%         figure('name', 'Control Debugging');
+% 
+%         % Visualize Control Components
+%         subplot(1, 2, 1)
+%         u1 = plot((tspan-t0)*TU/3600, u_future(1,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+%         hold on
+%         u2 = plot((tspan-t0)*TU/3600, u_future(2,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+%         u3 = plot((tspan-t0)*TU/3600, u_future(3,:)*1000*DU/TU^2, 'LineWidth', 1.5);
+%         ulim = plot((tspan-t0)*TU/3600, u_limit*ones(len, 1)*1000*DU/TU^2, 'r--', 'LineWidth', 1.2);
+%         xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+%         ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+%         title('Control Components')
+%         grid on
+%         legend([u1, u2, u3, ulim], '$u_r$', '$u_{\theta}$', '$u_h$', '$u_{max}$','Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+% 
+%         % Visualize Control Norm
+%         subplot(1, 2, 2)
+%         p1 = plot((tspan-t0)*TU/3600, u_norms*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
+%         hold on
+%         p2 = plot((tspan-t0)*TU/3600, u_limit*ones(len, 1)*1000*DU/TU^2, 'r--', 'LineWidth', 1.2);
+%         xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+%         ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
+%         title('Control Norm')
+%         grid on
+%         legend([p1, p2], '$|u|$', '$u_{max}$','Location', 'best', 'Fontsize', 12, 'Interpreter', 'latex');
+% 
+%         pause
+%     end
+% 
+%     [crosses, indexes, ~] = detectCross(u_norms, threshold);
+%     if crosses <= 1         % this is a cross from above, that's ok
+%         verifiedTimes(index) = 1;
+%         index = index +1;
+%     elseif crosses >= 2     % this means we have at least a cross from below, i. e. the threshold has been overcome by the feedback reaction
+%         stopPrediction = 1;
+%         stopSaturationTime = t;
+%     end
+% 
+%     if isempty(indexes)
+%         ind = 1;
+%     else
+%         ind = indexes(1);
+%     end
+% 
+%     [u_max, ~] = max(u_norms(ind+1:end));   % first values are excluded, because it's in saturation ( therefore u_norms(1) == u_limit )
+% 
+% end
 
-    % Perform the Propagation
-    [tspan, ControlledRelativeState] = odeHamHPC(@(t, state) NaturalFeedbackControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, 0), ...
-        [t0_int, tf_int], TCC, N_inner_integration);
 
-    % Predictive Propagation Post-Processing
-    len = length(tspan);
-    u_future = zeros(3,len);
-    u_norms = zeros(len,1);
-    for s = 1 : len
-        [~, ~, ~, ~, u_future(:,s), ...
-            ~, ~, ~, ~] = NaturalFeedbackControl(tspan(s), ...
-            ControlledRelativeState(s,:), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, 0);
-        u_norms(s) = norm(u_future(:,s));
-    end
-    
-    if debug
-        
-        close all
-        figure('name', 'Control Debugging');
-
-        % Visualize Control Components
-        subplot(1, 2, 1)
-        u1 = plot((tspan-t0)*TU/3600, u_future(1,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-        hold on
-        u2 = plot((tspan-t0)*TU/3600, u_future(2,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-        u3 = plot((tspan-t0)*TU/3600, u_future(3,:)*1000*DU/TU^2, 'LineWidth', 1.5);
-        ulim = plot((tspan-t0)*TU/3600, u_limit*ones(len, 1)*1000*DU/TU^2, 'r--', 'LineWidth', 1.2);
-        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-        title('Control Components')
-        grid on
-        legend([u1, u2, u3, ulim], '$u_r$', '$u_{\theta}$', '$u_h$', '$u_{max}$','Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
-        
-        % Visualize Control Norm
-        subplot(1, 2, 2)
-        p1 = plot((tspan-t0)*TU/3600, u_norms*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
-        hold on
-        p2 = plot((tspan-t0)*TU/3600, u_limit*ones(len, 1)*1000*DU/TU^2, 'r--', 'LineWidth', 1.2);
-        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
-        ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-        title('Control Norm')
-        grid on
-        legend([p1, p2], '$|u|$', '$u_{max}$','Location', 'best', 'Fontsize', 12, 'Interpreter', 'latex');
-    
-        pause
-    end
-
-    [crosses, indexes, ~] = detectCross(u_norms, threshold);
-    if crosses <= 1         % this is a cross from above, that's ok
-        verifiedTimes(index) = 1;
-        index = index +1;
-    elseif crosses >= 2     % this means we have at least a cross from below, i. e. the threshold has been overcome by the feedback reaction
-        stopPrediction = 1;
-        stopSaturationTime = t;
-    end
-
-    if isempty(indexes)
-        ind = 1;
-    else
-        ind = indexes(1);
-    end
-
-    [u_max, ~] = max(u_norms(ind+1:end));   % first values are excluded, because it's in saturation ( therefore u_norms(1) == u_limit )
-
-end
-
-
-if u_max < threshold    % compute kp to have saturation
+% if u_max < threshold    % compute kp to have saturation
+if t < t_sat
     a = -f + rhoddotd_LVLH;
     b = 2*(rhodot_LVLH - rhodotd_LVLH);
     c = (rho_LVLH - rhod_LVLH);
@@ -224,7 +222,12 @@ if u_max < threshold    % compute kp to have saturation
         % Actual kp is imaginary, older kp is kept
         k_type = 1j;
     else
-        [kp, k_type] = min(kp_set);
+        % if min(kp_set) < kp
+        %     [kp, k_type] = min(kp_set);        
+        % else
+        %     [kp, k_type] = max(kp_set);        
+        % end
+        [kp, k_type] = max(kp_set);        
     end
 
 else
@@ -270,21 +273,7 @@ dTCC(7:9) = rhodot_LVLH;
 dTCC(10:12) = f + u;
 dTCC(13) = x7_dot;
 
-
-% Clock for the Integration
-global pbar opt
-
-if opt.show_progress
-    Day = 86400;  % seconds in a day
-    Hour = 3600;  % seconds in an hour
-    Min = 60;     % seconds in a minute
-    tDAY = floor((t - t0) * TU / Day);      % calculate the elapsed time components
-    tHR = floor(((t - t0) * TU - tDAY * Day) / Hour);
-    tMIN = floor(((t - t0) * TU - tDAY * Day - tHR * Hour) / Min);
-    timeStr = sprintf('Time Elapsed: %02d days, %02d hrs, %02d mins', tDAY, tHR, tMIN);     % create a string for the time
-    waitbarMessage = sprintf('Progress: %.2f%%\n%s', (t-t0)/(tf-t0)*100, timeStr);      % create the waitbar message including the time and progress percentage
-    waitbar((t-t0)/(tf-t0), pbar, waitbarMessage);      % update the waitbar
 end
 
-end
+
 
