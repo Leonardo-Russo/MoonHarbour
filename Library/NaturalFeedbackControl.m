@@ -1,8 +1,11 @@
 function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm] = NaturalFeedbackControl(t, ...
     TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, is_col)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, is_col, emergency_manoeuvre_flag)
 
+if nargin < 23
+    emergency_manoeuvre_flag = 0;
+end
 
 % ----- Natural Relative Motion ----- %
 
@@ -121,6 +124,12 @@ ur = un_norm * (sin(gamma) * cos(beta) * sin(alphan) + sin(gamma) * sin(beta) * 
 ut = un_norm * (-sin(gamma) * cos(beta) * cos(alphan) + sin(gamma) * sin(beta) * sin(deltan) * sin(alphan) + cos(gamma) * cos(deltan) * sin(alphan));
 uh = un_norm * (-sin(gamma) * sin(beta) * cos(deltan) + cos(gamma) * sin(deltan));
 u = [ur; ut; uh];
+
+% Apply Emergency Manoeuvre
+emergency_distance = 9.8*1e-3/DU;        % 9.8 m
+if emergency_manoeuvre_flag && norm(rho_LVLH) < emergency_distance
+    % bring the thrust towards the tangential direction!
+end
 
 % Compute Mass Ratio Derivative
 c = 30/DU*TU;           % effective exhaust velocity = 30 km/s

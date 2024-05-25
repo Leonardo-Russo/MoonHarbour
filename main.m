@@ -10,12 +10,12 @@ addpath('Data/Planets/')
 addpath('Data/Materials/')
 addpath('Data/Ephemeris/')
 
-sampling_time = 10;                     % seconds
+sampling_time = 15;                     % seconds
 include_actuation = false;
 verbose = true;
-misalignment_type = "null";
-state_perturbation_flag = false;
-engine_failure_flag = false;
+misalignment_type = "oscillating";
+state_perturbation_flag = true;
+engine_failure_flag = true;
 workspace_path = "Data/Utils/main.mat";
 
 parfmain(sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path);

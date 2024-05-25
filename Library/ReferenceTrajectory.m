@@ -133,9 +133,22 @@ if collision
         TangentPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
     
         if ~isempty(TangentPPs)
+
             RHOrefPPs = TangentPPs;
             viapoints = [rho_r, rho_t, rho_h];
             tspan_viapoints = [t0, t1, tf]';
+
+        else    % this is Pre-Emergency Manoeuvre
+            
+            viapoints = [rho_r, rho_t, rho_h];
+            tspan_viapoints = [t0, t1, tf]';
+
+            rho_rPPs = csape(tspan_viapoints,[rhodot_r0 rho_r' rhodot_rf], [0, 1]); 
+            rho_tPPs = csape(tspan_viapoints,[rhodot_t0 rho_t' rhodot_tf], [0, 1]); 
+            rho_hPPs = csape(tspan_viapoints,[rhodot_h0 rho_h' rhodot_hf], [0, 1]); 
+            
+            RHOrefPPs = [rho_rPPs; rho_tPPs; rho_hPPs];
+
         end
 
     end

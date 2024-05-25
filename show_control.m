@@ -3,8 +3,6 @@
 close all
 clear
 clc
-
-% DEVI FARE HPControl
                                                                                 
 addpath('Library/')
 addpath('Data/')
@@ -244,14 +242,13 @@ end
 
 
 % Control Norm
-fig = figure('name', 'Control Thrust');
+fig = figure('name', 'Control Norm');
 p1 = plot((tspan_ctrl_DA-t0)*TU*sec2hrs, u_norm_temp*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
 hold on
 p2 = plot((tspan_ctrl_DA-t0)*TU*sec2hrs, u_limit*ones(length(tspan_ctrl_DA), 1), 'r--', 'LineWidth', 1.2);
 p3 = plot((tspan_ctrl_DA-t0)*TU*sec2hrs, f_norm_temp*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
 xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-title('Control Norm')
 grid on
 legend([p1, p2, p3], '$|u|$', '$u_{max}$', '$f$','Location', 'best', 'Fontsize', 12, 'Interpreter', 'latex');
 
