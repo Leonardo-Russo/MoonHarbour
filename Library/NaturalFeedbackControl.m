@@ -1,11 +1,9 @@
 function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm] = NaturalFeedbackControl(t, ...
     TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, is_col, emergency_manoeuvre_flag)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, is_col, emergency_manoeuvre_flag, rho_0, rho_f)
 
-if nargin < 23
-    emergency_manoeuvre_flag = 0;
-end
+persistent emergency_hysteresis
 
 % ----- Natural Relative Motion ----- %
 
@@ -126,9 +124,41 @@ uh = un_norm * (-sin(gamma) * sin(beta) * cos(deltan) + cos(gamma) * sin(deltan)
 u = [ur; ut; uh];
 
 % Apply Emergency Manoeuvre
-emergency_distance = 9.8*1e-3/DU;        % 9.8 m
-if emergency_manoeuvre_flag && norm(rho_LVLH) < emergency_distance
-    % bring the thrust towards the tangential direction!
+if emergency_manoeuvre_flag
+
+    emergency_min_distance = 9.8*1e-3/DU;           % 9.8 m
+    emergency_max_distance = 10.2*1e-3/DU;          % 10.2 m
+    
+    if isempty(emergency_hysteresis)
+        if norm(rho_LVLH) < emergency_min_distance
+            emergency_hysteresis = 1;
+        else
+            emergency_hysteresis = 0;
+        end
+    end
+    
+    if emergency_hysteresis && norm(rho_LVLH) > emergency_max_distance  
+        emergency_hysteresis = 0;
+        fprintf('Emergency Manoeuvre: 1 -> 0');
+    end
+    
+    if ~emergency_hysteresis && norm(rho_LVLH) < emergency_min_distance
+        emergency_hysteresis = 1;
+        fprintf('Emergency Manoeuvre: 0 -> 1');
+    end
+    
+    if norm(rho_LVLH) < emergency_min_distance
+        l_hat = cross(rho_0, rho_f) / norm(cross(rho_0, rho_f));
+        lambda0_hat = cross(l_hat, rho_0)/norm(rho_0);
+        u = u_lim * lambda0_hat;
+        fprintf('Applied Emergency Manoeuvre: dist = %.3f m\n', norm(rho_LVLH)*DU*1e3);
+    elseif norm(rho_LVLH) >= emergency_min_distance && norm(rho_LVLH) <= emergency_max_distance && emergency_hysteresis
+        l_hat = cross(rho_0, rho_f) / norm(cross(rho_0, rho_f));
+        lambda0_hat = cross(l_hat, rho_0)/norm(rho_0);
+        u = u_lim * lambda0_hat;
+        fprintf('Applied Emergency Manoeuvre: dist = %.3f m\n', norm(rho_LVLH)*DU*1e3);
+    end
+
 end
 
 % Compute Mass Ratio Derivative

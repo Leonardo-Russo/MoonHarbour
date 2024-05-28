@@ -98,7 +98,7 @@ coeffs_z_2 = [double(solution.c3_2), double(solution.c2_2), double(solution.c1_2
 % Check the Existance of a Solution
 if isempty(coeffs_x_1) || isempty(coeffs_x_2) || isempty(coeffs_y_1) || isempty(coeffs_y_2) || isempty(coeffs_z_1) || isempty(coeffs_z_2)
     exists_solution = 0;
-    warning('No possible solution for the Tangent Interpolation! Proceeding with the two-point interpolation instead.')
+    fprintf('No possible solution for the Tangent Interpolation! Proceeding with the two-point interpolation instead.\n');
 end
 
 if exists_solution

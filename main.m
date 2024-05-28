@@ -10,7 +10,7 @@ addpath('Data/Planets/')
 addpath('Data/Materials/')
 addpath('Data/Ephemeris/')
 
-sampling_time = 15;                     % seconds
+sampling_time = 60;                     % seconds
 include_actuation = false;
 verbose = true;
 misalignment_type = "oscillating";

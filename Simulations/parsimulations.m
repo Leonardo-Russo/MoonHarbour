@@ -32,13 +32,13 @@ successful_vel_tol = 1e-2;      % 1 cm/s
 success_color = '#39e617';
 failure_color = '#d12828';
 
-% Parallel Computing
-pool = gcp('nocreate');
-if isempty(pool)
-    c = parcluster;                         % get the current cluster object
-    numDesiredWorkers = c.NumWorkers;       % get the maximum number of workers
-    pool = parpool(numDesiredWorkers);      % start the parallel pool with the maximum number of workers   
-end
+% % Parallel Computing
+% pool = gcp('nocreate');
+% if isempty(pool)
+%     c = parcluster;                         % get the current cluster object
+%     numDesiredWorkers = c.NumWorkers;       % get the maximum number of workers
+%     pool = parpool(numDesiredWorkers);      % start the parallel pool with the maximum number of workers   
+% end
 
 % Define Simulation Options
 sim_id = "combined_10s";
@@ -50,8 +50,8 @@ state_perturbation_flag = true;
 engine_failure_flag = true;
 include_actuation = false;
 
-parfor (mc = 1 : MC, pool.NumWorkers)
-% for mc = 1 : MC
+% parfor (mc = 1 : MC, pool.NumWorkers)
+for mc = 1 : MC
 
     % try
 
