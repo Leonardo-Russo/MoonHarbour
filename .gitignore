@@ -2,6 +2,8 @@
 *.MATLABDriveTag
 Data/Graphics/
 Data/Ephemeris/
+Data/Utils/main.mat
 Library/Archive/
 Simulations/Results/**/*.fig
 Simulations/Results/**/*.mat
+debug.mat
