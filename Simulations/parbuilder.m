@@ -12,7 +12,7 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id = "combined_60s";        % specific results identifier
+sim_id = "combined_act_60s";        % specific results identifier
 
 
 %% Extract the Results
@@ -32,6 +32,10 @@ fprintf('\nFinal Position Error:\nmean = %.6f mm    std = %.6f mm\n\nFinal Veloc
 
 is_safe = zeros(MC, 1);
 for k = 1 : MC
+
+    if data(k).status == -1
+        continue;                   % skip failed simulations
+    end
     
     min_dist = 9.8;
     is_safe(k) = checkMultipleCrossings(data(k).dist*data(k).DU*1e3, min_dist);
@@ -65,5 +69,5 @@ view(-65, 15)
 
 % Save the Figure
 % savefig(terminal_traj, fullfile(root_dir, sim_dir, strcat(sim_id, ".fig")));
-print(terminal_traj, fullfile(root_dir, sim_id, strcat(sim_id, ".png")), '-dpng', '-r300');          % 300 DPI
+print(terminal_traj, fullfile(root_dir, sim_id, strcat(sim_id, ".png")), '-dpng', '-r1000');          % 300 DPI
 

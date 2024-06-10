@@ -1,4 +1,4 @@
-function rM2DSG_SYN = MCI2SYN(X_MCI, time, MoonPPsECI, deltaE, psiM, deltaM)
+function rM2DSG_SYN = MCI2SYN(X_MCI, time, MoonPPsECI, deltaE, psiM, deltaM, matching_arrays, stateMoon_ECI)
 % Description: this function find the position of the DSG in the Synodic
 % Reference frame.
 % 
@@ -13,6 +13,13 @@ function rM2DSG_SYN = MCI2SYN(X_MCI, time, MoonPPsECI, deltaE, psiM, deltaM)
 % Outputs:
 % rM2DSG_SYN = position vector of the DSG in SYN reference frame
 
+if nargin < 7
+    matching_arrays = 0;
+end
+if nargin < 8
+    stateMoon_ECI = zeros(1, 6);
+end
+
 % Initialize rM2DSG_SYN Matrix
 rM2DSG_SYN = zeros(length(X_MCI(:,1)), 3);
 
@@ -23,7 +30,11 @@ for i = 1 : size(X_MCI, 1)
     rDSG_MCI = X_MCI(i, 1:3)';
     
     % Find Moon State in ECI - ppsval()
-    XM_ECI = ppsval(MoonPPsECI, time(i));
+    if matching_arrays
+        XM_ECI = stateMoon_ECI(i, :)';
+    else
+        XM_ECI = ppsval(MoonPPsECI, time(i));
+    end
 
     % % Find Moon State in ECI - PolyEval()
     % rM_ECI = [PolyEval(t(i), time, flip(ppMoonECI(1).coefs, 2)); ...

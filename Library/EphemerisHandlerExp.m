@@ -36,14 +36,16 @@ t0_sharp = juliandate(date0)*Dsol;
 tf_sharp = juliandate(datef)*Dsol;
 
 t0 = interp1(time, time, t0_sharp, 'nearest');
+t0 = time(1);
 t0_idx = find(time == t0);
 
 tf = interp1(time, time, tf_sharp, 'nearest');
+tf = time(end);
 tf_idx = find(time == tf); 
 
 tf = tf/TU;     % save the final time
 
-tf_idx = tf_idx + (tf_idx - t0_idx) / 2;        % expand the final time index
+% tf_idx = tf_idx + (tf_idx - t0_idx) / 2;        % expand the final time index
 
 % Retrieve Data from Ephemeris
 stateDSG_ECI = stateDSG(t0_idx : tf_idx, :);

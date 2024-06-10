@@ -139,12 +139,12 @@ if emergency_manoeuvre_flag
     
     if emergency_hysteresis && norm(rho_LVLH) > emergency_max_distance  
         emergency_hysteresis = 0;
-        fprintf('Emergency Manoeuvre: 1 -> 0');
+        fprintf('Emergency Manoeuvre: 1 -> 0\n');
     end
     
     if ~emergency_hysteresis && norm(rho_LVLH) < emergency_min_distance
         emergency_hysteresis = 1;
-        fprintf('Emergency Manoeuvre: 0 -> 1');
+        fprintf('Emergency Manoeuvre: 0 -> 1\n');
     end
     
     if norm(rho_LVLH) < emergency_min_distance

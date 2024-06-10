@@ -286,6 +286,9 @@ ut = un_norm * (-sin(gamma) * cos(beta) * cos(alpha_opt) + sin(gamma) * sin(beta
 uh = un_norm * (-sin(gamma) * sin(beta) * cos(delta_opt) + cos(gamma) * sin(delta_opt));
 u = [ur; ut; uh];
 
+% NO THRUST
+u = zeros(3, 1);
+
 
 % ---------- Assign State Derivatives ---------- %
 dY(1:6) = G*apt_LVLHt;

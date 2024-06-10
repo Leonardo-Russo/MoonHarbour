@@ -11,7 +11,7 @@ addpath('Data/Materials/')
 addpath('Data/Ephemeris/')
 
 sampling_time = 60;                     % seconds
-include_actuation = false;
+include_actuation = true;
 verbose = true;
 misalignment_type = "oscillating";
 state_perturbation_flag = true;

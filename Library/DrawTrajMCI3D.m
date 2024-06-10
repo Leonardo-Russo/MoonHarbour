@@ -16,6 +16,7 @@ Z = rMatrixMCI(:, 3);
 [x,y,z]=sphere;
 
 rM = 1738.1;    % km
+% rM = 6371;
 I = imread('moon.jpg');
 surface(rM*x, rM*y, rM*z, flipud(I), 'FaceColor', 'texturemap', 'EdgeColor', 'none', 'CDataMapping', 'direct')
 
@@ -26,9 +27,9 @@ P = plot3(X,Y,Z,'Color',color, 'Linestyle', linestyle, 'LineWidth', 1.5);
 hold off
 grid on
 axis equal
-xlabel('$x$', 'interpreter', 'latex', 'fontsize', 12)
-ylabel('$y$', 'interpreter', 'latex', 'fontsize', 12)
-zlabel('$z$', 'interpreter', 'latex', 'fontsize', 12)
+xlabel('$X$', 'interpreter', 'latex', 'fontsize', 12)
+ylabel('$Y$', 'interpreter', 'latex', 'fontsize', 12)
+zlabel('$Z$', 'interpreter', 'latex', 'fontsize', 12)
 view([30, 30])
 
 
