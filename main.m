@@ -13,9 +13,9 @@ addpath('Data/Ephemeris/')
 sampling_time = 60;                     % seconds
 include_actuation = true;
 verbose = true;
-misalignment_type = "oscillating";
-state_perturbation_flag = true;
-engine_failure_flag = true;
+misalignment_type = "null";
+state_perturbation_flag = false;
+engine_failure_flag = false;
 workspace_path = "Data/Utils/main.mat";
 
 parfmain(sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path);
@@ -337,7 +337,144 @@ if misalignment_type ~= "null"
     end
 end
 
+include_realignment_manoeuvre = 1;
+opt.saveplots = 1;
 
+if include_realignment_manoeuvre
+
+    % Body and Commanded Attitude Quaternions
+    figure('name', "Realignment - Body and Commanded Attitude")
+    subplot(1, 2, 1)
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 14), 'LineWidth', 1.5)
+    hold on
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 15), 'LineWidth', 1.5)
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 16), 'LineWidth', 1.5)
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 17), 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('q_{b0}', 'q_{b1}', 'q_{b2}', 'q_{b3}', 'fontsize', 10, 'location', 'best')
+    grid on
+    subplot(1, 2, 2)
+    plot((tspan_drift-t0)*TU*sec2hrs, Q_N2C_drift(:, 1), 'LineWidth', 1.5)
+    hold on
+    plot((tspan_drift-t0)*TU*sec2hrs, Q_N2C_drift(:, 2), 'LineWidth', 1.5)
+    plot((tspan_drift-t0)*TU*sec2hrs, Q_N2C_drift(:, 3), 'LineWidth', 1.5)
+    plot((tspan_drift-t0)*TU*sec2hrs, Q_N2C_drift(:, 4), 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
+    grid on  
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Realignment - Body and Commanded Quaternions.jpg'))
+    end
+    
+    
+    % Error Quaternions
+    figure('name', "Realignment - Error Quaternions")
+    plot((tspan_drift-t0)*TU*sec2hrs, qe0_drift, 'LineWidth', 1.5)
+    hold on
+    plot((tspan_drift-t0)*TU*sec2hrs, qe_drift(:, 1), 'LineWidth', 1.5)
+    plot((tspan_drift-t0)*TU*sec2hrs, qe_drift(:, 2), 'LineWidth', 1.5)
+    plot((tspan_drift-t0)*TU*sec2hrs, qe_drift(:, 3), 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('q_{e0}', 'q_{e1}', 'q_{e2}', 'q_{e3}', 'fontsize', 10, 'location', 'best')
+    grid on
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Realignment - Error Quaternions.jpg'))
+    end
+    
+    
+    % Body and Wheels Angular Velocities
+    figure('name', "Realignment - Body and Wheels Angular Velocities")
+    subplot(1, 2, 1)
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 18)/TU, 'LineWidth', 1.5)
+    hold on
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 19)/TU, 'LineWidth', 1.5)
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 20)/TU, 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
+    grid on
+    subplot(1, 2, 2)
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 21)/TU, 'LineWidth', 1.5)
+    hold on
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 22)/TU, 'LineWidth', 1.5)
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 23)/TU, 'LineWidth', 1.5)
+    plot((tspan_drift-t0)*TU*sec2hrs, Y_drift(:, 24)/TU, 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
+    grid on
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Realignment - Body and Wheels Angular Velocities.jpg'))
+    end
+    
+    
+    % Commanded Torque
+    figure('name', 'Realignment - Commanded Torque')
+    plot((tspan_drift-t0)*TU*sec2hrs, Tc_drift(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    hold on
+    plot((tspan_drift-t0)*TU*sec2hrs, Tc_drift(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    plot((tspan_drift-t0)*TU*sec2hrs, Tc_drift(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+    xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+    ylabel('$T_{c,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+    legend('T_{c1}', 'T_{c2}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+    grid on
+    if opt.saveplots
+        saveas(gcf, strcat('Output/Plots/Realignment - Commanded Torque.jpg'))
+    end
+    
+    if opt.include_actuation
+        % Actual Torque
+        figure('name', 'Realignment - Actual Torque')
+        plot((tspan_drift-t0)*TU*sec2hrs, Ta_drift(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        hold on
+        plot((tspan_drift-t0)*TU*sec2hrs, Ta_drift(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        plot((tspan_drift-t0)*TU*sec2hrs, Ta_drift(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$T_{a,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('T_{a1}', 'T_{a2}', 'T_{a3}', 'fontsize', 10, 'location', 'best')
+        grid on
+        if opt.saveplots
+            saveas(gcf, strcat('Output/Plots/Realignment - Actual Torque.jpg'))
+        end
+        
+        
+        % Actual vs Commanded Torque
+        figure('name', 'Realignment - Actual vs Commanded Torque')
+        subplot(1, 3, 1)
+        plot((tspan_drift-t0)*TU*sec2hrs, Ta_drift(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        hold on
+        plot((tspan_drift-t0)*TU*sec2hrs, Tc_drift(:, 1)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$T_{1} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('T_{a1}', 'T_{c1}', 'fontsize', 10, 'location', 'best')
+        grid on
+        subplot(1, 3, 2)
+        plot((tspan_drift-t0)*TU*sec2hrs, Ta_drift(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        hold on
+        plot((tspan_drift-t0)*TU*sec2hrs, Tc_drift(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$T_{2} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('T_{a2}', 'T_{c2}', 'fontsize', 10, 'location', 'best')
+        grid on
+        subplot(1, 3, 3)
+        plot((tspan_drift-t0)*TU*sec2hrs, Ta_drift(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        hold on
+        plot((tspan_drift-t0)*TU*sec2hrs, Tc_drift(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$T_{3} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('T_{a3}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+        grid on
+        if opt.saveplots
+            saveas(gcf, strcat('Output/Plots/Realignment - Actual vs Commanded Torque.jpg'))
+        end
+    end
+
+end
+
+opt.saveplots = 0;
 if opt.additional_plots
 
     % Chaser State in LVLH

@@ -68,9 +68,15 @@ rho_t = Chebspace(rho_t0, rho_tf, pi, finalAngle_t, N)';
 rho_h = Chebspace(rho_h0, rho_hf, pi, finalAngle_h, N)';
 
 % Compute Reference trajectory (spline)
-rho_rPPs = csape(tspan_viapoints,[rhodot_r0 rho_r' rhodot_rf], BC); 
-rho_tPPs = csape(tspan_viapoints,[rhodot_t0 rho_t' rhodot_tf], BC); 
-rho_hPPs = csape(tspan_viapoints,[rhodot_h0 rho_h' rhodot_hf], BC); 
+if all(BC == [1, 1])
+    rho_rPPs = csape(tspan_viapoints,[rhodot_r0 rho_r' rhodot_rf], BC); 
+    rho_tPPs = csape(tspan_viapoints,[rhodot_t0 rho_t' rhodot_tf], BC); 
+    rho_hPPs = csape(tspan_viapoints,[rhodot_h0 rho_h' rhodot_hf], BC); 
+else
+    rho_rPPs = csape(tspan_viapoints,[0 rho_r' rhodot_rf], BC); 
+    rho_tPPs = csape(tspan_viapoints,[0 rho_t' rhodot_tf], BC); 
+    rho_hPPs = csape(tspan_viapoints,[0 rho_h' rhodot_hf], BC);
+end
 
 RHOrefPPs = [rho_rPPs; rho_tPPs; rho_hPPs];
 viapoints = [rho_r, rho_t, rho_h];

@@ -12,7 +12,7 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id = "combined_act_60s";        % specific results identifier
+sim_id = "combined_berthing_5mm_60s_part2";        % specific results identifier
 
 
 %% Extract the Results
@@ -70,4 +70,19 @@ view(-65, 15)
 % Save the Figure
 % savefig(terminal_traj, fullfile(root_dir, sim_dir, strcat(sim_id, ".fig")));
 print(terminal_traj, fullfile(root_dir, sim_id, strcat(sim_id, ".png")), '-dpng', '-r1000');          % 300 DPI
+
+
+r_comp = figure('Name', 'State Components - r', 'WindowState', 'maximized');
+for k = 1 : MC
+
+    if data(k).status == -1
+        continue;                   % skip failed simulations
+    end
+
+    color = data(k).color;
+
+    plot(data(k).tspan_ctrl*data(k).TU, data(k).RHO_LVLH(:, 1)*data(k).DU)
+
+end
+
 

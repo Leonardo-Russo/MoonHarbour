@@ -14,10 +14,10 @@ addpath('../Data/Utils/')
 
 
 % Define the n° of simulations
-MC = 48;
+MC = 16;
 
 % Preallocate Data
-data = struct('RHO_LVLH', [], 'M_ctrl_DA', [], 'DU', [], 'RHOd_LVLH', [], 'color', [], 'dist', [], 'vel', [], 'successful', [], 'deltaState', [], 'failure_times', [], 'misalignments', [], ...
+data = struct('status', [], 'RHO_LVLH', [], 'M_ctrl_DA', [], 'DU', [], 'RHOd_LVLH', [], 'color', [], 'dist', [], 'vel', [], 'successful', [], 'deltaState', [], 'failure_times', [], 'misalignments', [], ...
               'renderdata', [], 'TCC', [], 'Xt_MCI', [], 'RHO_MCI', [], 'u', [], 'u_norms', [], 'f_norms', [], 'kp_store', [], 'qe0', [], 'qe', [], 'Tc', [], 'Ta', [], 'betas', [], 'gammas', [], 'acc', []);
 data = repmat(data, MC, 1);
 
@@ -42,14 +42,14 @@ if isempty(pool)
 end
 
 % Define Simulation Options
-sim_id = "combined_berthing_5mm_60s_part2";
+sim_id = "testing";
 mkdir(strcat("Results/", sim_id));
 sampling_time = 60;                     % seconds
 verbose = true;
 misalignment_type = "oscillating";
 state_perturbation_flag = true;
 engine_failure_flag = true;
-include_actuation = false;
+include_actuation = true;
 
 parfor (mc = 1 : MC, pool.NumWorkers)
 % for mc = 1 : MC
@@ -58,20 +58,23 @@ parfor (mc = 1 : MC, pool.NumWorkers)
 
         fprintf('Starting Simulation n° %2d...\n', mc);
 
-        [RHO_LVLH, M_ctrl_DA, M_ctrl, DU, RHOd_LVLH, dist, vel, deltaState, failure_times, misalignments, ...
-            renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, qe0, qe, ...
-            Tc, Ta, betas, gammas, acc] = parfmain(sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
+        [RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
+            renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
+            qe0, qe, Tc, Ta, betas, gammas, acc, deltaState, tspan, tspan_ctrl, ...
+            Y_ctrl, t0, tf, failure_times, misalignments] = parfmain(sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
 
-        is_safe = check_min_distance(dist, DU, M_ctrl_DA, M_ctrl, 9.8);
+        is_safe = check_min_distance(dist, DU, M_ctrl_DA, M_ctrl, 9.5);
 
         data(mc).color = cmap(mc, :);
         data(mc).RHO_LVLH = RHO_LVLH;
         data(mc).M_ctrl_DA = M_ctrl_DA;
+        data(mc).M_ctrl = M_ctrl;
+        data(mc).M_drift = M_drift;
         data(mc).DU = DU;
+        data(mc).TU = TU;
         data(mc).RHOd_LVLH = RHOd_LVLH;
         data(mc).dist = dist;
         data(mc).vel = vel;
-
         data(mc).renderdata = renderdata;
         data(mc).TCC = TCC;
         data(mc).Xt_MCI = Xt_MCI;
@@ -87,6 +90,14 @@ parfor (mc = 1 : MC, pool.NumWorkers)
         data(mc).betas = betas;
         data(mc).gammas = gammas;
         data(mc).acc = acc;
+        data(mc).deltaState = deltaState;
+        data(mc).tspan = tspan;
+        data(mc).tspan_ctrl = tspan_ctrl;
+        data(mc).Y_ctrl = Y_ctrl;
+        data(mc).t0 = t0;
+        data(mc).tf = tf;
+        data(mc).failure_times = failure_times;
+        data(mc).misalignments = misalignments;
 
     
         if norm(deltaState(1:3)) <= successful_dist_tol && norm(deltaState(4:6)) <= successful_vel_tol

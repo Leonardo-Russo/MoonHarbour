@@ -1,8 +1,12 @@
 function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, Ta, xb_LVLH, beta, gamma] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, omega_n, DU, TU, MU, branch, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, failure_times, clock, is_col, include_actuation)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, omega_n, DU, TU, MU, branch, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, failure_times, clock, is_col, include_actuation, only_attitude)
 
 % -------------------- Orbital Control -------------------- %
+
+if nargin < 33
+    only_attitude = 0;
+end
 
 % ----- Natural Relative Motion ----- %
 
@@ -110,6 +114,11 @@ if ~isnan(failure_times(1))
     if t >= failure_times(1) && t <= failure_times(2)
         un_norm = 0;
     end
+end
+
+% Allow Only Attitude Control by Removing Thrust
+if only_attitude
+    un_norm = 0;
 end
 
 % Compute Mass Ratio Derivative
