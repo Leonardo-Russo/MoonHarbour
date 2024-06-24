@@ -1,0 +1,7 @@
+sampling_time = 60;                     % seconds
+include_actuation = true;
+final_velocity = -5e-6;                 % -5 mm/s
+verbose = true;
+misalignment_type = "oscillating";
+state_perturbation_flag = true;
+engine_failure_flag = true;

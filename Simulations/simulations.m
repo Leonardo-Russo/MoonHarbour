@@ -14,7 +14,7 @@ addpath('../Data/Utils/')
 
 
 % Define the n° of simulations
-MC = 16;
+MC = 56;
 
 % Preallocate Data
 data = struct('status', [], 'RHO_LVLH', [], 'M_ctrl_DA', [], 'DU', [], 'RHOd_LVLH', [], 'color', [], 'dist', [], 'vel', [], 'successful', [], 'deltaState', [], 'failure_times', [], 'misalignments', [], ...
@@ -42,14 +42,16 @@ if isempty(pool)
 end
 
 % Define Simulation Options
-sim_id = "testing";
+sim_id = "berthing_60s_part1";
 mkdir(strcat("Results/", sim_id));
 sampling_time = 60;                     % seconds
 verbose = true;
+% final_velocity = -1e-5;                 % -1 cm/s
+final_velocity = -5e-6;                 % -5 mm/s
 misalignment_type = "oscillating";
 state_perturbation_flag = true;
 engine_failure_flag = true;
-include_actuation = true;
+include_actuation = false;
 
 parfor (mc = 1 : MC, pool.NumWorkers)
 % for mc = 1 : MC
@@ -60,8 +62,10 @@ parfor (mc = 1 : MC, pool.NumWorkers)
 
         [RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
             renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
-            qe0, qe, Tc, Ta, betas, gammas, acc, deltaState, tspan, tspan_ctrl, ...
-            Y_ctrl, t0, tf, failure_times, misalignments] = parfmain(sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
+            qe0, qe, Tc, Ta, omega_e, omega_e_norms, angle_e, betas, gammas, acc, ...
+            deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
+            Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
+            omega_e_drift, omega_e_drift_norms, angle_e_drift] = parfmain(sampling_time, include_actuation, final_velocity, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
 
         is_safe = check_min_distance(dist, DU, M_ctrl_DA, M_ctrl, 9.5);
 
@@ -87,6 +91,9 @@ parfor (mc = 1 : MC, pool.NumWorkers)
         data(mc).qe = qe;
         data(mc).Tc = Tc;
         data(mc).Ta = Ta;
+        data(mc).omega_e = omega_e;
+        data(mc).omega_e_norms = omega_e_norms;
+        data(mc).angle_e = angle_e;
         data(mc).betas = betas;
         data(mc).gammas = gammas;
         data(mc).acc = acc;
@@ -98,6 +105,15 @@ parfor (mc = 1 : MC, pool.NumWorkers)
         data(mc).tf = tf;
         data(mc).failure_times = failure_times;
         data(mc).misalignments = misalignments;
+        data(mc).Y_drift = Y_drift;
+        data(mc).Q_N2C_drift = Q_N2C_drift;
+        data(mc).qe0_drift = qe0_drift;
+        data(mc).qe_drift = qe_drift;
+        data(mc).Tc_drift = Tc_drift;
+        data(mc).Ta_drift = Ta_drift;
+        data(mc).omega_e_drift = omega_e_drift;
+        data(mc).omega_e_drift_norms = omega_e_drift_norms;
+        data(mc).angle_e_drift = angle_e_drift;
 
     
         if norm(deltaState(1:3)) <= successful_dist_tol && norm(deltaState(4:6)) <= successful_vel_tol
@@ -123,4 +139,5 @@ parfor (mc = 1 : MC, pool.NumWorkers)
 
 end
 
+% save(strcat("Results/", sim_id, "/", sim_id, ".mat"), 'sim_id', 'sampling_time', 'final_velocity', 'misalignment_type', 'engine_failure_flag', 'state_perturbation_flag', 'include_actuation', 'data', 'table', 'MC');
 save(strcat("Results/", sim_id, "/", sim_id, ".mat"));

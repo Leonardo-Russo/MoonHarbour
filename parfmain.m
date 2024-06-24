@@ -1,9 +1,11 @@
 function [RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
             renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
-            qe0, qe, Tc, Ta, betas, gammas, acc, deltaState, tspan, tspan_ctrl, ...
-            Y_ctrl, t0, tf, failure_times, misalignments] = parfmain(sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path)
+            qe0, qe, Tc, Ta, omega_e, omega_e_norms, angle_e, betas, gammas, acc, ...
+            deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
+            Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
+            omega_e_drift, omega_e_drift_norms, angle_e_drift] = parfmain(sampling_time, include_actuation, final_velocity, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path)
 
-if nargin < 7
+if nargin < 8
     workspace_path = "none";
 end
 
@@ -24,7 +26,7 @@ opt.AbsTolODE = 1e-6;
 
 emergency_manoeuvre_flag = 1;
 
-include_realignment_manoeuvre = 0;
+include_realignment_manoeuvre = 1;
 
 OptionsODE = odeset('RelTol', opt.RelTolODE, 'AbsTol', opt.AbsTolODE);
 
@@ -71,8 +73,7 @@ RHO0_LVLH = [rho0_LVLH; rhodot0_LVLH];
 
 % Define Direct Approach Conditions
 final_dist = 5e-3/DU;       % 5 m
-final_vel = -1e-5/DU*TU;    % -1 cm/s
-% final_vel = -5e-6/DU*TU;    % -5 mm/s
+final_vel = final_velocity/DU*TU;
 rhof_LVLH_DA = final_dist * RHO0_LVLH(1:3)/norm(RHO0_LVLH(1:3));
 rhodotf_LVLH_DA = final_vel * RHO0_LVLH(1:3)/norm(RHO0_LVLH(1:3));
 RHOf_LVLH_DA = [rhof_LVLH_DA; rhodotf_LVLH_DA];
@@ -921,6 +922,10 @@ if include_realignment_manoeuvre
 
     TCC_drift = Y_drift(:, 1:13);
 
+else
+
+    Y_drift = [TCC_drift, zeros(size(TCC_drift, 1), 11)];
+
 end
 
 %% Post-Processing
@@ -960,6 +965,9 @@ q0_LVLHt2MCI = zeros(M_ctrl, 1);
 q_LVLHt2MCI = zeros(M_ctrl, 3);
 Tc = zeros(M_ctrl, 3);
 Ta = zeros(M_ctrl, 3);
+omega_e = zeros(M_ctrl, 3);
+omega_e_norms = zeros(M_ctrl, 1);
+angle_e = zeros(M_ctrl, 1);
 betas = zeros(M_ctrl, 1);
 gammas = zeros(M_ctrl, 1);
 
@@ -969,6 +977,9 @@ qe0_drift = zeros(M_drift, 1);
 qe_drift = zeros(M_drift, 3);
 Tc_drift = zeros(M_drift, 3);
 Ta_drift = zeros(M_drift, 3);
+omega_e_drift = zeros(M_drift, 3);
+omega_e_drift_norms = zeros(M_drift, 1);
+angle_e_drift = zeros(M_drift, 1);
 
 
 % Perform Post-Processing
@@ -1023,6 +1034,15 @@ for i = 1 : size(RHO_LVLH, 1)
         qb_post = Y_ctrl(s, 15:17)';
         qe0(s) = qc0_post*qb0_post + qc_post' * qb_post;
         qe(s, :) = (-qc_post*qb0_post + qc0_post*qb_post - skew(qc_post)*qb_post)';
+        omega_e(s, :) = Y_ctrl(s, 18:20)' - q2C(qe0(s), qe(s, :)')' * omega_c_rt_stack(s, :)';
+        omega_e_norms(s) = norm(omega_e(s, :));
+        if sign(qe0(s)) == 1
+            angle_e(s) = 2*acos(abs(min(qe0(s), 1)));
+        elseif sign(qe0(s)) == -1
+            angle_e(s) = 2*acos(abs(max(qe0(s), -1)));
+        else
+            angle_e(s) = 2*acos(abs(qe0(s)));
+        end
 
         R_LVLHt2MCI_post = get_rotLVLH2MCI(Xt_MCI(i, :)', tspan(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
         % [q0_LVLHt2MCI(s), q_LVLHt2MCI(s, :)] = C2q(R_LVLHt2MCI_post);
@@ -1050,6 +1070,15 @@ for i = 1 : size(RHO_LVLH, 1)
             qb_drift_post = Y_drift(ss, 15:17)';
             qe0_drift(ss) = qc0_drift_post*qb0_drift_post + qc_drift_post' * qb_drift_post;
             qe_drift(ss, :) = (-qc_drift_post*qb0_drift_post + qc0_drift_post*qb_drift_post - skew(qc_drift_post)*qb_drift_post)';
+            omega_e_drift(ss, :) = Y_drift(ss, 18:20)' - q2C(qe0_drift(ss), qe_drift(ss, :)')' * omega_c_drift(ss, :)';
+            omega_e_drift_norms = norm(omega_e_drift(ss, :));
+            if sign(qe0_drift(ss)) == 1
+                angle_e_drift(ss) = 2*acos(abs(min(qe0_drift(ss), 1)));
+            elseif sign(qe0_drift(ss)) == -1
+                angle_e_drift(ss) = 2*acos(abs(max(qe0_drift(ss), -1)));
+            else
+                angle_e_drift(ss) = 2*acos(abs(qe0_drift(ss)));
+            end
     
             R_LVLHt2MCI_post = get_rotLVLH2MCI(Xt_MCI(i, :)', tspan(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
             % [q0_LVLHt2MCI(s), q_LVLHt2MCI(s, :)] = C2q(R_LVLHt2MCI_post);

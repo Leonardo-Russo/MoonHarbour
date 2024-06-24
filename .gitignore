@@ -6,5 +6,6 @@ Data/Utils/main.mat
 Library/Archive/
 Simulations/Results/**/*.fig
 Simulations/Results/**/*.mat
+Results/**/*.mat
 debug.mat
 Data/Utils/main.mat
