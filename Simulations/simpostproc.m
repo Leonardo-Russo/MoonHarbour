@@ -14,7 +14,7 @@ addpath('../Data/Ephemeris/')
 %% Post-Processing
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "berthing_60s_part1";        % specific results identifier
+sim_id_tot = "berthing_60s_act_new_part1";        % specific results identifier
 
 load(strcat(root_dir, "/", sim_id_tot, "/", sim_id_tot, ".mat"));
 
@@ -38,6 +38,8 @@ for k = 1 : MC
             data(k).angle_e_drift(j) = 0;
         end
     end
+
+    table(k, 11:12) = [data(k).omega_e_drift_norms(end)/data(k).TU, data(k).angle_e_drift(end)];
 
 end
 

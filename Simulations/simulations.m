@@ -42,7 +42,7 @@ if isempty(pool)
 end
 
 % Define Simulation Options
-sim_id = "berthing_60s_part1";
+sim_id = "berthing_60s_act_new_part2";
 mkdir(strcat("Results/", sim_id));
 sampling_time = 60;                     % seconds
 verbose = true;
@@ -51,7 +51,7 @@ final_velocity = -5e-6;                 % -5 mm/s
 misalignment_type = "oscillating";
 state_perturbation_flag = true;
 engine_failure_flag = true;
-include_actuation = false;
+include_actuation = true;
 
 parfor (mc = 1 : MC, pool.NumWorkers)
 % for mc = 1 : MC

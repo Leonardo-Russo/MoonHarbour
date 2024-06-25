@@ -36,9 +36,9 @@ close all
 
 sim_from_mc = true;
 
-sim_id = "berthing_60s_part1";
+sim_id = "berthing_60s_act_new_part1";
 load(strcat("Simulations/Results/", sim_id, "/", sim_id, ".mat"), 'data');
-sim_n = 12;
+sim_n = 9;
 
 [RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
     renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
@@ -46,12 +46,6 @@ sim_n = 12;
     deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
     Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
     omega_e_drift, omega_e_drift_norms, angle_e_drift] = workspace_from_data(data(sim_n));
-
-% [RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
-%       renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
-%       qe0, qe, Tc, Ta, betas, gammas, acc, deltaState, tspan, tspan_ctrl, ...
-%       Y_ctrl, t0, tf, failure_times, misalignments, Y_drift, Q_N2C_drift, ...
-%       qe0_drift, qe_drift, Tc_drift, Ta_drift] = workspace_from_data_old(data(sim_n));
 
 sec2hrs = 1/3600;
 runtime = 0;            % I don't know the runtime :(
@@ -65,6 +59,7 @@ opt.saveplots = true;
 opt.additional_plots = false;
 include_realignment_manoeuvre = 1;
 direct_approach_results = 1;
+rdv_with_drift = 1;
 
 res = '-r600';
 
@@ -716,6 +711,164 @@ if include_realignment_manoeuvre
         if opt.saveplots
             print(fig, 'Output/Plots/Realignment - Actual vs Commanded Torque.png', '-dpng', res);
         end
+    end
+
+    if rdv_with_drift
+
+        % % Total - Body and Commanded Attitude Quaternions
+        % fig = figure('name', "Total - Body and Commanded Attitude");
+        % subplot(1, 2, 1)
+        % plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Y_drift(:, 14), 'LineWidth', 1.5)
+        % hold on
+        % plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Y_drift(:, 15), 'LineWidth', 1.5)
+        % plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Y_drift(:, 16), 'LineWidth', 1.5)
+        % plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Y_drift(:, 17), 'LineWidth', 1.5)
+        % xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+        % ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+        % legend('q_{b0}', 'q_{b1}', 'q_{b2}', 'q_{b3}', 'fontsize', 10, 'location', 'best')
+        % grid on
+        % subplot(1, 2, 2)
+        % plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Q_N2C_drift(:, 1), 'LineWidth', 1.5)
+        % hold on
+        % plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Q_N2C_drift(:, 2), 'LineWidth', 1.5)
+        % plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Q_N2C_drift(:, 3), 'LineWidth', 1.5)
+        % plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Q_N2C_drift(:, 4), 'LineWidth', 1.5)
+        % xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+        % ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+        % legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
+        % grid on  
+        % if opt.saveplots
+        %     print(fig, 'Output/Plots/Total - Body and Commanded Quaternions.png', '-dpng', res);
+        % end
+        
+        
+        % Total - Error Quaternions
+        fig = figure('name', "Total - Error Quaternions");
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [qe0; qe0_drift], 'LineWidth', 1.5)
+        hold on
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [qe(:, 1); qe_drift(:, 1)], 'LineWidth', 1.5)
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [qe(:, 2); qe_drift(:, 2)], 'LineWidth', 1.5)
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [qe(:, 3); qe_drift(:, 3)], 'LineWidth', 1.5)
+        xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('q_{e0}', 'q_{e1}', 'q_{e2}', 'q_{e3}', 'fontsize', 10, 'location', 'best')
+        grid on
+        if opt.saveplots
+            print(fig, 'Output/Plots/Total - Error Quaternions.png', '-dpng', res);
+        end
+    
+        % Total - Error Angular Velocity
+        fig = figure('name', "Total - Error Angular Velocity");
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [omega_e(:, 1); omega_e_drift(:, 1)]/TU, 'LineWidth', 1.5)
+        hold on
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [omega_e(:, 2); omega_e_drift(:, 2)]/TU, 'LineWidth', 1.5)
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [omega_e(:, 3); omega_e_drift(:, 3)]/TU, 'LineWidth', 1.5)
+        xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$\omega_{ei} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('\omega_{e1}', '\omega_{e2}', '\omega_{e3}', 'fontsize', 10, 'location', 'best')
+        grid on
+        if opt.saveplots
+            print(fig, 'Output/Plots/Total - Error Angular Velocity.png', '-dpng', res);
+        end
+    
+        % Total - Error Angle
+        fig = figure('name', "Total - Error Angle");
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, rad2deg([angle_e; angle_e_drift]), 'LineWidth', 1.5)
+        xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$\Phi_e \, [deg]$', 'interpreter', 'latex', 'fontsize', 12)
+        grid on
+        if opt.saveplots
+            print(fig, 'Output/Plots/Total - Error Angle.png', '-dpng', res);
+        end
+        
+        % Total - Body and Wheels Angular Velocities
+        fig = figure('name', "Total - Body and Wheels Angular Velocities");
+        subplot(1, 2, 1)
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Y_ctrl(:, 18); Y_drift(:, 18)]/TU, 'LineWidth', 1.5)
+        hold on
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Y_ctrl(:, 19); Y_drift(:, 19)]/TU, 'LineWidth', 1.5)
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Y_ctrl(:, 20); Y_drift(:, 20)]/TU, 'LineWidth', 1.5)
+        xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
+        grid on
+        subplot(1, 2, 2)
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Y_ctrl(:, 21); Y_drift(:, 21)]/TU, 'LineWidth', 1.5)
+        hold on
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Y_ctrl(:, 22); Y_drift(:, 22)]/TU, 'LineWidth', 1.5)
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Y_ctrl(:, 23); Y_drift(:, 23)]/TU, 'LineWidth', 1.5)
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Y_ctrl(:, 24); Y_drift(:, 24)]/TU, 'LineWidth', 1.5)
+        xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
+        grid on
+        if opt.saveplots
+            print(fig, 'Output/Plots/Total - Body and Wheels Angular Velocities.png', '-dpng', res);
+        end
+        
+        
+        % Total - Commanded Torque
+        fig = figure('name', 'Total - Commanded Torque');
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Tc(:, 1); Tc_drift(:, 1)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        hold on
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Tc(:, 2); Tc_drift(:, 2)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Tc(:, 3); Tc_drift(:, 3)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+        xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+        ylabel('$T_{c,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+        legend('T_{c1}', 'T_{c2}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+        grid on
+        if opt.saveplots
+            print(fig, 'Output/Plots/Total - Commanded Torque.png', '-dpng', res);
+        end
+    
+        
+        if opt.include_actuation
+            % Total - Actual Torque
+            fig = figure('name', 'Total - Actual Torque');
+            plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Ta(:, 1); Ta_drift(:, 1)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+            hold on
+            plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Ta(:, 2); Ta_drift(:, 2)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+            plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Ta(:, 3); Ta_drift(:, 3)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+            xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+            ylabel('$T_{a,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+            legend('T_{a1}', 'T_{a2}', 'T_{a3}', 'fontsize', 10, 'location', 'best')
+            grid on
+            if opt.saveplots
+                print(fig, 'Output/Plots/Total - Actual Torque.png', '-dpng', res);
+            end
+            
+            
+            % % Total - Actual vs Commanded Torque
+            % fig = figure('name', 'Total - Actual vs Commanded Torque');
+            % subplot(1, 3, 1)
+            % plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Ta(:, 1); Ta_drift(:, 1)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+            % hold on
+            % plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Tc(:, 1); Tc_drift(:, 1)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+            % xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+            % ylabel('$T_{1} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+            % legend('T_{a1}', 'T_{c1}', 'fontsize', 10, 'location', 'best')
+            % grid on
+            % subplot(1, 3, 2)
+            % plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Ta(:, 2); Ta_drift(:, 2)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+            % hold on
+            % plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Tc(:, 2); Tc_drift(:, 2)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+            % xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+            % ylabel('$T_{2} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+            % legend('T_{a2}', 'T_{c2}', 'fontsize', 10, 'location', 'best')
+            % grid on
+            % subplot(1, 3, 3)
+            % plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Ta(:, 3); Ta_drift(:, 3)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+            % hold on
+            % plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Tc(:, 3); Tc_drift(:, 3)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
+            % xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+            % ylabel('$T_{3} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
+            % legend('T_{a3}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+            % grid on
+            % if opt.saveplots
+            %     print(fig, 'Output/Plots/Total - Actual vs Commanded Torque.png', '-dpng', res);
+            % end
+        end
+
     end
 
 end

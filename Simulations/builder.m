@@ -12,7 +12,7 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "berthing_60s_part1";        % specific results identifier
+sim_id_tot = "berthing_60s_act_new_part1";        % specific results identifier
 
 % Docking 60s
 % 1) 54 is fucked
@@ -41,13 +41,13 @@ line_width = 2;
 close all
 
 % Create the Results table
-results_table = array2table(table, 'VariableNames', {'id', 'status', 'dr (m)', 'dtheta (m)', 'dh (m)', 'dv_r (m/s)', 'dv_theta (m/s)', 'dv_h (m/s)', 'delta_rho (m)', 'delta_rhodot (m/s)'});
+results_table = array2table(table, 'VariableNames', {'id', 'status', 'dr (m)', 'dtheta (m)', 'dh (m)', 'dv_r (m/s)', 'dv_theta (m/s)', 'dv_h (m/s)', 'delta_rho (m)', 'delta_rhodot (m/s)', 'omega_ef (rad/s)', 'angle_e (deg)'});
 excel_filepath = fullfile(root_dir, sim_id_tot, strcat(sim_id_tot, ".xlsx"));
 writetable(results_table, excel_filepath);
 disp(results_table);
 fprintf('Results have been saved to: "%s"\n', excel_filepath);
 
-fprintf('\nFinal Position Error:\nmean = %.6f mm    std = %.6f mm\n\nFinal Velocity Error:\nmean = %.6f mm/s    std = %.6f mm/s\n', mean(table(:, 9))*1e3, std(table(:, 9))*1e3, mean(table(:, 10))*1e3, std(table(:, 10))*1e3)
+fprintf('\nFinal Position Error:\nmean = %.4f mm    std = %.4f mm\n\nFinal Velocity Error:\nmean = %.4f mm/s    std = %.4f mm/s\n\nFinal omega_e:\nmean = %.6fe-6 rad/s  std = %.6fe-6 rad/s\n\nFinal angle_e:\nmean = %.4f deg    std = %.4f deg\n\n', mean(table(:, 9))*1e3, std(table(:, 9))*1e3, mean(table(:, 10))*1e3, std(table(:, 10))*1e3, mean(table(:, 11))*1e6, std(table(:, 11))*1e6, rad2deg(mean(table(:, 12))), rad2deg(std(table(:, 12))))
 
 is_safe = zeros(MC, 1);
 for k = 1 : MC
@@ -63,7 +63,7 @@ for k = 1 : MC
     end
 
 end
-
+% return
 terminal_traj = figure('name', 'Terminal Chaser Trajectory in LVLH Space', 'WindowState', 'maximized');
 for k = 1 : MC
 

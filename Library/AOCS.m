@@ -1,10 +1,21 @@
 function [dY, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm, Tc, Ta, xb_LVLH, beta, gamma] = AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, omega_n, DU, TU, MU, branch, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, failure_times, clock, is_col, include_actuation, only_attitude)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, omega_n, DU, TU, MU, branch, TCC_PPs, omega_cPPs, omegadot_cPPs, Q_N2C_PPs, sign_qe0_0, misalignment, failure_times, clock, is_col, include_actuation, emergency_manoeuvre_flag, rho_0, rho_f, only_attitude)
+
+persistent emergency_hysteresis
 
 % -------------------- Orbital Control -------------------- %
 
 if nargin < 33
+    emergency_manoeuvre_flag = false;
+end
+
+if ~ emergency_manoeuvre_flag
+    rho_0 = 0;
+    rho_f = 0;
+end
+
+if nargin < 36 % need to change this
     only_attitude = 0;
 end
 
@@ -120,10 +131,6 @@ end
 if only_attitude
     un_norm = 0;
 end
-
-% Compute Mass Ratio Derivative
-c = 30/DU*TU;           % effective exhaust velocity = 30 km/s
-x7_dot = - x7*norm(un_norm)/c;
 
 
 
@@ -294,6 +301,50 @@ ur = un_norm * (sin(gamma) * cos(beta) * sin(alpha_opt) + sin(gamma) * sin(beta)
 ut = un_norm * (-sin(gamma) * cos(beta) * cos(alpha_opt) + sin(gamma) * sin(beta) * sin(delta_opt) * sin(alpha_opt) + cos(gamma) * cos(delta_opt) * sin(alpha_opt));
 uh = un_norm * (-sin(gamma) * sin(beta) * cos(delta_opt) + cos(gamma) * sin(delta_opt));
 u = [ur; ut; uh];
+
+
+% Apply Emergency Manoeuvre
+if emergency_manoeuvre_flag && ~only_attitude
+
+    emergency_min_distance = 9.8*1e-3/DU;           % 9.8 m
+    emergency_max_distance = 10.2*1e-3/DU;          % 10.2 m
+    
+    if isempty(emergency_hysteresis)
+        if norm(rho_LVLH) < emergency_min_distance
+            emergency_hysteresis = 1;
+        else
+            emergency_hysteresis = 0;
+        end
+    end
+    
+    if emergency_hysteresis && norm(rho_LVLH) > emergency_max_distance  
+        emergency_hysteresis = 0;
+        fprintf('Emergency Manoeuvre: 1 -> 0\n');
+    end
+    
+    if ~emergency_hysteresis && norm(rho_LVLH) < emergency_min_distance
+        emergency_hysteresis = 1;
+        fprintf('Emergency Manoeuvre: 0 -> 1\n');
+    end
+    
+    if norm(rho_LVLH) < emergency_min_distance
+        l_hat = cross(rho_0, rho_f) / norm(cross(rho_0, rho_f));
+        lambda0_hat = cross(l_hat, rho_0)/norm(rho_0);
+        u = u_lim * lambda0_hat;
+        fprintf('Applied Emergency Manoeuvre: dist = %.3f m\n', norm(rho_LVLH)*DU*1e3);
+    elseif norm(rho_LVLH) >= emergency_min_distance && norm(rho_LVLH) <= emergency_max_distance && emergency_hysteresis
+        l_hat = cross(rho_0, rho_f) / norm(cross(rho_0, rho_f));
+        lambda0_hat = cross(l_hat, rho_0)/norm(rho_0);
+        u = u_lim * lambda0_hat;
+        fprintf('Applied Emergency Manoeuvre: dist = %.3f m\n', norm(rho_LVLH)*DU*1e3);
+    end
+
+end
+
+
+% Compute Mass Ratio Derivative
+c = 30/DU*TU;           % effective exhaust velocity = 30 km/s
+x7_dot = - x7*norm(norm(u))/c;
 
 
 % ---------- Assign State Derivatives ---------- %
