@@ -12,31 +12,35 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "berthing_60s_act_new_part1";        % specific results identifier
+sim_id_tot = "docking_60s_new_part1";        % specific results identifier
 
 % Docking 60s
 % 1) 54 is fucked
 % 2) 52 is fucked
 
+% Berthing 60s
+% 1) 12 is the emergency one
+% 2) 
+
 % Docking 60s act
 % 1) -
 % 2) -
 
-% Berthing 60s
-% 1) 12 is the emergency one
-
 % Berthing 60s act
-% 1) -
-% 2) 30 is the emergency one
+% 1) 9 is the emergency manoeuvre
+% 2) 18 is the emergency manoeuvre
 
 %% Extract the Results
 
 load(strcat(root_dir, "/", sim_id_tot, "/", sim_id_tot, ".mat"));
 
-res = '-r300';
+res = '-r600';
 fontsize_labels = 24;
 fontsize_axes = 24;
 line_width = 2;
+fontsize_labels = 12;
+fontsize_axes = 10;
+line_width = 1.2;
 
 close all
 
@@ -47,7 +51,7 @@ writetable(results_table, excel_filepath);
 disp(results_table);
 fprintf('Results have been saved to: "%s"\n', excel_filepath);
 
-fprintf('\nFinal Position Error:\nmean = %.4f mm    std = %.4f mm\n\nFinal Velocity Error:\nmean = %.4f mm/s    std = %.4f mm/s\n\nFinal omega_e:\nmean = %.6fe-6 rad/s  std = %.6fe-6 rad/s\n\nFinal angle_e:\nmean = %.4f deg    std = %.4f deg\n\n', mean(table(:, 9))*1e3, std(table(:, 9))*1e3, mean(table(:, 10))*1e3, std(table(:, 10))*1e3, mean(table(:, 11))*1e6, std(table(:, 11))*1e6, rad2deg(mean(table(:, 12))), rad2deg(std(table(:, 12))))
+fprintf('\nFinal Position Error:\nmean = %.4f mm    std = %.4f mm\n\nFinal Velocity Error:\nmean = %.4f mm/s    std = %.4f mm/s\n\nFinal omega_e:\nmean = %.4fe-6 rad/s  std = %.4fe-6 rad/s\n\nFinal angle_e:\nmean = %.4f deg    std = %.4f deg\n\n', mean(table(:, 9))*1e3, std(table(:, 9))*1e3, mean(table(:, 10))*1e3, std(table(:, 10))*1e3, mean(table(:, 11))*1e6, std(table(:, 11))*1e6, rad2deg(mean(table(:, 12))), rad2deg(std(table(:, 12))))
 
 is_safe = zeros(MC, 1);
 for k = 1 : MC
@@ -64,7 +68,7 @@ for k = 1 : MC
 
 end
 % return
-terminal_traj = figure('name', 'Terminal Chaser Trajectory in LVLH Space', 'WindowState', 'maximized');
+terminal_traj = figure('name', 'Terminal Chaser Trajectory in LVLH Space');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -91,12 +95,13 @@ hold on
 radius = 10e-3;
 surface(radius*x, radius*y, radius*z, 'FaceColor', '#ffcf82', 'EdgeColor', 'none', 'CDataMapping', 'direct', 'FaceAlpha', 0.2)
 view(-55, 15)
+% view(-50, 25)
 set(gca, 'FontSize', fontsize_axes);
 savefig(terminal_traj, fullfile(root_dir, sim_id_tot, strcat(sim_id_tot, ".fig")));
 print(terminal_traj, fullfile(root_dir, sim_id_tot, strcat(sim_id_tot, ".png")), '-dpng', res);          % 300 DPI
 
 
-r_comp = figure('Name', 'State Components - r', 'WindowState', 'maximized');
+r_comp = figure('Name', 'State Components - r');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -117,7 +122,7 @@ set(gca, 'FontSize', fontsize_axes);
 savefig(r_comp, fullfile(root_dir, sim_id_tot, "state_components - r.fig"));
 print(r_comp, fullfile(root_dir, sim_id_tot, "state_components - r.png"), '-dpng', res);          % 300 DPI
 
-theta_comp = figure('Name', 'State Components - theta', 'WindowState', 'maximized');
+theta_comp = figure('Name', 'State Components - theta');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -138,7 +143,7 @@ set(gca, 'FontSize', fontsize_axes);
 savefig(theta_comp, fullfile(root_dir, sim_id_tot, "state_components - theta.fig"));
 print(theta_comp, fullfile(root_dir, sim_id_tot, "state_components - theta.png"), '-dpng', res);          % 300 DPI
 
-h_comp = figure('Name', 'State Components - h', 'WindowState', 'maximized');
+h_comp = figure('Name', 'State Components - h');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -159,7 +164,7 @@ set(gca, 'FontSize', fontsize_axes);
 savefig(h_comp, fullfile(root_dir, sim_id_tot, "state_components - h.fig"));
 print(h_comp, fullfile(root_dir, sim_id_tot, "state_components - h.png"), '-dpng', res);          % 300 DPI
 
-rdot_comp = figure('Name', 'State Components - rdot', 'WindowState', 'maximized');
+rdot_comp = figure('Name', 'State Components - rdot');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -180,7 +185,7 @@ set(gca, 'FontSize', fontsize_axes);
 savefig(rdot_comp, fullfile(root_dir, sim_id_tot, "state_components - rdot.fig"));
 print(rdot_comp, fullfile(root_dir, sim_id_tot, "state_components - rdot.png"), '-dpng', res);          % 300 DPI
 
-thetadot_comp = figure('Name', 'State Components - thetadot', 'WindowState', 'maximized');
+thetadot_comp = figure('Name', 'State Components - thetadot');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -201,7 +206,7 @@ set(gca, 'FontSize', fontsize_axes);
 savefig(thetadot_comp, fullfile(root_dir, sim_id_tot, "state_components - thetadot.fig"));
 print(thetadot_comp, fullfile(root_dir, sim_id_tot, "state_components - thetadot.png"), '-dpng', res);          % 300 DPI
 
-hdot_comp = figure('Name', 'State Components - hdot', 'WindowState', 'maximized');
+hdot_comp = figure('Name', 'State Components - hdot');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -223,7 +228,7 @@ savefig(hdot_comp, fullfile(root_dir, sim_id_tot, "state_components - hdot.fig")
 print(hdot_comp, fullfile(root_dir, sim_id_tot, "state_components - hdot.png"), '-dpng', res);          % 300 DPI
 
 
-qe0_fig = figure('Name', 'Realignment - Error Quaternions - qe0', 'WindowState', 'maximized');
+qe0_fig = figure('Name', 'Realignment - Error Quaternions - qe0');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -245,7 +250,7 @@ savefig(qe0_fig, fullfile(root_dir, sim_id_tot, "realignment - qe0.fig"));
 print(qe0_fig, fullfile(root_dir, sim_id_tot, "realignment - qe0.png"), '-dpng', res);
 
 
-qe1_fig = figure('Name', 'Realignment - Error Quaternions - qe1', 'WindowState', 'maximized');
+qe1_fig = figure('Name', 'Realignment - Error Quaternions - qe1');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -267,7 +272,7 @@ savefig(qe1_fig, fullfile(root_dir, sim_id_tot, "realignment - qe1.fig"));
 print(qe1_fig, fullfile(root_dir, sim_id_tot, "realignment - qe1.png"), '-dpng', res);
 
 
-qe2_fig = figure('Name', 'Realignment - Error Quaternions - qe2', 'WindowState', 'maximized');
+qe2_fig = figure('Name', 'Realignment - Error Quaternions - qe2');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -289,7 +294,7 @@ savefig(qe2_fig, fullfile(root_dir, sim_id_tot, "realignment - qe2.fig"));
 print(qe2_fig, fullfile(root_dir, sim_id_tot, "realignment - qe2.png"), '-dpng', res);
 
 
-qe3_fig = figure('Name', 'Realignment - Error Quaternions - qe3', 'WindowState', 'maximized');
+qe3_fig = figure('Name', 'Realignment - Error Quaternions - qe3');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -311,7 +316,7 @@ savefig(qe3_fig, fullfile(root_dir, sim_id_tot, "realignment - qe3.fig"));
 print(qe3_fig, fullfile(root_dir, sim_id_tot, "realignment - qe3.png"), '-dpng', res);
 
 
-omega_e1_fig = figure('Name', 'Realignment - Error Quaternions - omega_e1', 'WindowState', 'maximized');
+omega_e1_fig = figure('Name', 'Realignment - Error Quaternions - omega_e1');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -333,7 +338,7 @@ savefig(omega_e1_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e1.fig
 print(omega_e1_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e1.png"), '-dpng', res);
 
 
-omega_e2_fig = figure('Name', 'Realignment - Error Quaternions - omega_e2', 'WindowState', 'maximized');
+omega_e2_fig = figure('Name', 'Realignment - Error Quaternions - omega_e2');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -355,7 +360,7 @@ savefig(omega_e2_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e2.fig
 print(omega_e2_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e2.png"), '-dpng', res);
 
 
-omega_e3_fig = figure('Name', 'Realignment - Error Quaternions - omega_e3', 'WindowState', 'maximized');
+omega_e3_fig = figure('Name', 'Realignment - Error Quaternions - omega_e3');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -377,7 +382,7 @@ savefig(omega_e3_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e3.fig
 print(omega_e3_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e3.png"), '-dpng', res);
 
 
-omega_e_norms_fig = figure('Name', 'Realignment - Error Quaternions - omega_e_norms', 'WindowState', 'maximized');
+omega_e_norms_fig = figure('Name', 'Realignment - Error Quaternions - omega_e_norms');
 for k = 1 : MC
 
     if data(k).status == -1
@@ -399,7 +404,7 @@ savefig(omega_e_norms_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e
 print(omega_e_norms_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e_norms.png"), '-dpng', res);
 
 
-angle_e_fig = figure('Name', 'Realignment - Error Quaternions - angle_e', 'WindowState', 'maximized');
+angle_e_fig = figure('Name', 'Realignment - Error Quaternions - angle_e');
 for k = 1 : MC
 
     if data(k).status == -1

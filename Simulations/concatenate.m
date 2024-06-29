@@ -12,14 +12,14 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id1 = "docking_60s_act_part1";
-sim_id2 = "docking_60s_act_part2";        % specific results identifier
-sim_id_tot = "docking_60s_act";
+sim_id1 = "docking_60s_act_new_part1";
+sim_id2 = "docking_60s_act_new_part2";        % specific results identifier
+sim_id_tot = "docking_60s_act_new";
 idx1 = 50;
 idx2 = 50;
 
 % Preallocate Table
-table_tot = zeros(idx1+idx2, 10);
+table_tot = zeros(idx1+idx2, 12);
 
 % Define colormap
 cmap_tot = lines(idx1+idx2);
@@ -43,6 +43,13 @@ MC = idx1 + idx2;
 % Concatenate the Results
 table = table_tot;
 data = [data_1; data_2];
+
+% % If you need to substitute stuff...
+% data(68) = data(101);
+% table(68, :) = table(101, :);
+% data = data(1:100);
+% table = table(1:100, :);
+% MC = 100;
 
 for i = 1 : MC
     data(i).color = cmap_tot(i, :);

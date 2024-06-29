@@ -28,6 +28,8 @@ emergency_manoeuvre_flag = 1;
 
 include_realignment_manoeuvre = 1;
 
+direct_mating = 0;
+
 OptionsODE = odeset('RelTol', opt.RelTolODE, 'AbsTol', opt.AbsTolODE);
 
 % Define Thrust Misalignment
@@ -212,8 +214,13 @@ optODE_back = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop
 tspan_back = linspace(tf, t0 + (tf-t0)/2, opt.N);
 
 % Define Opposite Arrival Point
+% if ~direct_mating
 rhof_LVLH = -final_dist * TCC_T0(7:9)'/norm(TCC_T0(7:9));
 rhodotf_LVLH = -final_vel * TCC_T0(7:9)'/norm(TCC_T0(7:9));
+% else
+%     rhof_LVLH = final_dist * TCC_T0(7:9)'/norm(TCC_T0(7:9));
+%     rhodotf_LVLH = final_vel * TCC_T0(7:9)'/norm(TCC_T0(7:9));
+% end
 RHOf_LVLH = [rhof_LVLH; rhodotf_LVLH];
 
 % Define Final Conditions

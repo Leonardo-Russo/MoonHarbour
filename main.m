@@ -14,45 +14,45 @@ addpath('Data/Ephemeris/')
 %% Perform the Simulation
 
 sampling_time = 60;                     % seconds
-include_actuation = true;
+include_actuation = false;
 final_velocity = -1e-5;                 % -1 cm/s
 % final_velocity = -5e-6;                 % -5 mm/s
 verbose = true;
-misalignment_type = "oscillating";
-state_perturbation_flag = true;
-engine_failure_flag = true;
+misalignment_type = "null";
+state_perturbation_flag = false;
+engine_failure_flag = false;
 workspace_path = "Data/Utils/main.mat";
 
 parfmain(sampling_time, include_actuation, final_velocity, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path);
 
-
+% return
 %% Visualize the Results
 clc
 close all
 
-% load('Data/Utils/main.mat');
+load('Data/Utils/main.mat');
 
 % load('Results/berthing_60s_act_combined/main.mat');
 
-sim_from_mc = true;
+sim_from_mc = false;
 
-sim_id = "berthing_60s_act_new_part1";
-load(strcat("Simulations/Results/", sim_id, "/", sim_id, ".mat"), 'data');
-sim_n = 9;
-
-[RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
-    renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
-    qe0, qe, Tc, Ta, omega_e, omega_e_norms, angle_e, betas, gammas, acc, ...
-    deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
-    Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
-    omega_e_drift, omega_e_drift_norms, angle_e_drift] = workspace_from_data(data(sim_n));
-
-sec2hrs = 1/3600;
-runtime = 0;            % I don't know the runtime :(
-g0 = 9.80665;           % m/s^2
-u_limit = 5e-5*g0;      % m/s^2
-MU = 1/DU^2;
-opt.include_actuation = true;
+% sim_id = "docking_60s_act_new_part1";
+% load(strcat("Simulations/Results/", sim_id, "/", sim_id, ".mat"), 'data');
+% sim_n = 10;
+% 
+% [RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
+%     renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
+%     qe0, qe, Tc, Ta, omega_e, omega_e_norms, angle_e, betas, gammas, acc, ...
+%     deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
+%     Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
+%     omega_e_drift, omega_e_drift_norms, angle_e_drift] = workspace_from_data(data(sim_n));
+% 
+% sec2hrs = 1/3600;
+% runtime = 0;            % I don't know the runtime :(
+% g0 = 9.80665;           % m/s^2
+% u_limit = 5e-5*g0;      % m/s^2
+% MU = 1/DU^2;
+% opt.include_actuation = true;
 
 
 opt.saveplots = true;
@@ -62,6 +62,30 @@ direct_approach_results = 1;
 rdv_with_drift = 1;
 
 res = '-r600';
+
+% % TEMP
+% for kk = 1 : M_ctrl
+%     qe0(kk) = qe0(kk) / norm([qe0(kk), qe(kk, :)]);
+%     qe(kk, :) = qe(kk, :) / norm([qe0(kk), qe(kk, :)]);
+% end
+% 
+% qe_norma = zeros(M_ctrl+M_drift, 1);
+% for jj = 1 : M_ctrl
+%     qe_norma(jj) = norm([qe0(jj), qe(jj, :)]);
+% end
+% for jj = 1 : M_drift
+%     qe_norma(jj+M_ctrl) = norm([qe0_drift(jj), qe_drift(jj, :)]);
+% end
+% fig = figure('Name', 'Norma dei Quaternioni');
+% plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, qe_norma, 'color', '#4195e8', 'LineWidth', 1.5)
+% xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
+% ylabel('$|q_e| \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
+% % xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
+% grid on
+% if opt.saveplots
+%     print(fig, 'Output/Plots/Quaternion Norm.png', '-dpng', res);
+% end
+% return
 
 if ~sim_from_mc
     % Show Numerical Results
@@ -83,7 +107,7 @@ Cd_LVLH_T = DrawTrajLVLH3D(RHOd_LVLH(M_ctrl_DA+1:end, 1:3)*DU, '#6efad2', '-.');
 % legend([C_LVLH_T, Cd_LVLH_T, vp_T], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points'}, 'location', 'best')
 % legend([C_LVLH_T, Cd_LVLH_T], {'Chaser Trajectory', 'Reference Trajectory'}, 'location', 'best')
 % view(-55, 15)
-view(0, 90)
+% view(0, 90)
 delete(Cd_LVLH_T)
 if opt.saveplots
     print(fig, 'Output/Plots/Trajectory Terminal LVLH.png', '-dpng', res);
@@ -98,6 +122,7 @@ plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 1)*DU, 'color', '#4195e8', 'LineWidth', 
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\rho_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'location', 'best')
+xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig1, 'Output/Plots/State_LVLH_Component_rho_r.png', '-dpng', res);
@@ -109,6 +134,7 @@ plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 2)*DU, 'color', '#4195e8', 'LineWidth', 
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\rho_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'location', 'best')
+xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig2, 'Output/Plots/State_LVLH_Component_rho_theta.png', '-dpng', res);
@@ -120,6 +146,7 @@ plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 3)*DU, 'color', '#4195e8', 'LineWidth', 
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\rho_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'location', 'best')
+xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig3, 'Output/Plots/State_LVLH_Component_rho_h.png', '-dpng', res);
@@ -131,6 +158,7 @@ plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 4)*DU/TU, 'color', '#4195e8', 'LineWidth
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\dot{\rho}_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'location', 'best')
+xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig4, 'Output/Plots/State_LVLH_Component_dot_rho_r.png', '-dpng', res);
@@ -142,6 +170,7 @@ plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 5)*DU/TU, 'color', '#4195e8', 'LineWidth
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\dot{\rho}_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'location', 'best')
+xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig5, 'Output/Plots/State_LVLH_Component_dot_rho_theta.png', '-dpng', res);
@@ -153,6 +182,7 @@ plot((tspan-t0)*TU*sec2hrs, RHO_LVLH(:, 6)*DU/TU, 'color', '#4195e8', 'LineWidth
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\dot{\rho}_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('Desired', 'Actual', 'location', 'best')
+xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig6, 'Output/Plots/State_LVLH_Component_dot_rho_h.png', '-dpng', res);
@@ -165,13 +195,13 @@ subplot(1, 2, 1)
 plot((tspan-t0)*TU*sec2hrs, dist*DU, 'color', '#4195e8', 'LineWidth', 1.5)
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$|\rho| \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
-% title('Relative Distance')
+xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 subplot(1, 2, 2)
 plot((tspan-t0)*TU*sec2hrs, vel*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$|\dot{\rho}| \ [km/s]$', 'interpreter', 'latex', 'fontsize', 12)
-% title('Relative Velocity')
+xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig, 'Output/Plots/Relative Distance and Velocity.png', '-dpng', res);
@@ -186,22 +216,23 @@ p2 = plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWid
 p3 = plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-% title('Control Norm')
 grid on
-legend([p1, p2, p3], '$|u|$', '$u_{max}$', '$f$','Location', 'south', 'Fontsize', 12, 'Interpreter', 'latex');
-hold off
-zoomPos = [0.5, 0.6, 0.3, 0.25]; % set position of the zoomed plot [left, bottom, width, height]
-axes('position', zoomPos);
-box on  % adds a box around the new axes
-plot((tspan-t0)*TU*sec2hrs, u_norms*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
-hold on
-plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
-plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
-grid on
-xlim([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]);   % set the x and y limits for the zoomed plot based on the final part of the data
-% ylim([-u_limit(1)/2, u_limit(1)/2]);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
+% legend([p1, p2, p3], '$|u|$', '$u_{max}$', '$f$','Location', 'south', 'Fontsize', 12, 'Interpreter', 'latex');
+legend([p1, p2, p3], '$|u|$', '$u_{max}$', '$f$','Location', 'best', 'Fontsize', 12, 'Interpreter', 'latex');
+xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
+% hold off
+% zoomPos = [0.5, 0.6, 0.3, 0.25]; % set position of the zoomed plot [left, bottom, width, height]
+% axes('position', zoomPos);
+% box on  % adds a box around the new axes
+% plot((tspan-t0)*TU*sec2hrs, u_norms*1000*DU/TU^2, 'Color', '#4195e8', 'LineWidth', 1.5);
+% hold on
+% plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
+% plot((tspan-t0)*TU*sec2hrs, f_norms*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
+% grid on
+% xlim([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]);   % set the x and y limits for the zoomed plot based on the final part of the data
+% % ylim([-u_limit(1)/2, u_limit(1)/2]);
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
+% ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
 if opt.saveplots
     print(fig, 'Output/Plots/Control Norm.png', '-dpng', res);
 end
@@ -216,23 +247,25 @@ u3 = plot((tspan-t0)*TU*sec2hrs, u(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
 ulim = plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-% title('Control Components')
 grid on
-legend([u1, u2, u3, ulim], '$u_r$', '$u_{\theta}$', '$u_h$', '$u_{max}$','Location', 'southeast', 'Fontsize', 12, 'Interpreter','latex');
-hold off
-zoomPos = [0.5, 0.6, 0.3, 0.25];    % set position of the zoomed plot [left, bottom, width, height]
-axes('position', zoomPos);
-box on  % adds a box around the new axes
-plot((tspan-t0)*TU*sec2hrs, u(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
-hold on
-plot((tspan-t0)*TU*sec2hrs, u(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
-plot((tspan-t0)*TU*sec2hrs, u(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
-plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
-grid on
-xlim([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]); % set the x and y limits to focus on the final part of the plot
-% ylim([-u_limit(1)/2, u_limit(1)/2]);
-xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
-ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
+% legend([u1, u2, u3, ulim], '$u_r$', '$u_{\theta}$', '$u_h$', '$u_{max}$','Location', 'southeast', 'Fontsize', 12, 'Interpreter','latex');
+legend([u1, u2, u3, ulim], '$u_r$', '$u_{\theta}$', '$u_h$', '$u_{max}$','Location', 'best', 'Fontsize', 12, 'Interpreter','latex');
+xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
+% ylim([0, u_limit])
+% hold off
+% zoomPos = [0.5, 0.6, 0.3, 0.25];    % set position of the zoomed plot [left, bottom, width, height]
+% axes('position', zoomPos);
+% box on  % adds a box around the new axes
+% plot((tspan-t0)*TU*sec2hrs, u(:, 1)*1000*DU/TU^2, 'LineWidth', 1.5);
+% hold on
+% plot((tspan-t0)*TU*sec2hrs, u(:, 2)*1000*DU/TU^2, 'LineWidth', 1.5);
+% plot((tspan-t0)*TU*sec2hrs, u(:, 3)*1000*DU/TU^2, 'LineWidth', 1.5);
+% plot((tspan-t0)*TU*sec2hrs, u_limit*ones(length(tspan), 1), 'r--', 'LineWidth', 1.2);
+% grid on
+% xlim([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]); % set the x and y limits to focus on the final part of the plot
+% % ylim([-u_limit(1)/2, u_limit(1)/2]);
+% xlabel('$t \ [hours]$', 'interpreter', 'latex', 'fontsize', 10)
+% ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 10)
 if opt.saveplots
     print(fig, 'Output/Plots/Control Components.png', '-dpng', res);
 end
@@ -262,6 +295,7 @@ if direct_approach_results
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\rho_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('Desired', 'Actual', 'location', 'best')
+    xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig1, 'Output/Plots/Direct_Approach_State_LVLH_Component_rho_r.png', '-dpng', res);
@@ -273,6 +307,7 @@ if direct_approach_results
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\rho_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('Desired', 'Actual', 'location', 'best')
+    xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig2, 'Output/Plots/Direct_Approach_State_LVLH_Component_rho_theta.png', '-dpng', res);
@@ -284,6 +319,7 @@ if direct_approach_results
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\rho_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('Desired', 'Actual', 'location', 'best')
+    xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig3, 'Output/Plots/Direct_Approach_State_LVLH_Component_rho_h.png', '-dpng', res);
@@ -295,6 +331,7 @@ if direct_approach_results
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\dot{\rho}_r \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('Desired', 'Actual', 'location', 'best')
+    xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig4, 'Output/Plots/Direct_Approach_State_LVLH_Component_dot_rho_r.png', '-dpng', res);
@@ -306,6 +343,7 @@ if direct_approach_results
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\dot{\rho}_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('Desired', 'Actual', 'location', 'best')
+    xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig5, 'Output/Plots/Direct_Approach_State_LVLH_Component_dot_rho_theta.png', '-dpng', res);
@@ -317,6 +355,7 @@ if direct_approach_results
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\dot{\rho}_h \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('Desired', 'Actual', 'location', 'best')
+    xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig6, 'Output/Plots/Direct_Approach_State_LVLH_Component_dot_rho_h.png', '-dpng', res);
@@ -329,13 +368,13 @@ if direct_approach_results
     plot((tspan(1:M_ctrl_DA) - t0)*TU*sec2hrs, dist(1:M_ctrl_DA)*DU, 'color', '#4195e8', 'LineWidth', 1.5)
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$|\rho| \ [km]$', 'interpreter', 'latex', 'fontsize', 12)
-    % title('Relative Distance')
+    xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     subplot(1, 2, 2)
     plot((tspan(1:M_ctrl_DA) - t0)*TU*sec2hrs, vel(1:M_ctrl_DA)*DU/TU, 'color', '#4195e8', 'LineWidth', 1.5)
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$|\dot{\rho}| \ [km/s]$', 'interpreter', 'latex', 'fontsize', 12)
-    % title('Relative Velocity')
+    xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig, 'Output/Plots/Direct Approach - Relative Distance and Velocity.png', '-dpng', res);
@@ -350,10 +389,9 @@ if direct_approach_results
     p3 = plot((tspan(1:M_ctrl_DA) - t0)*TU*sec2hrs, f_norms(1:M_ctrl_DA)*1000*DU/TU^2, 'Color', '#93faad', 'LineWidth', 1.5);
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-    % title('Control Norm')
     grid on
     legend([p1, p2, p3], '$|u|$', '$u_{max}$', '$f$','Location', 'south', 'Fontsize', 12, 'Interpreter', 'latex');
-    % xlim([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tf-t0)*TU*sec2hrs]);
+    xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     if opt.saveplots
         print(fig, 'Output/Plots/Direct Approach - Control Norm.png', '-dpng', res);
     end
@@ -368,9 +406,9 @@ if direct_approach_results
     ulim = plot((tspan(1:M_ctrl_DA) - t0)*TU*sec2hrs, u_limit*ones(length(tspan(1:M_ctrl_DA)), 1), 'r--', 'LineWidth', 1.2);
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$[m/s^2]$', 'interpreter', 'latex', 'fontsize', 12)
-    % title('Control Components')
     grid on
     legend([u1, u2, u3, ulim], '$u_r$', '$u_{\theta}$', '$u_h$', '$u_{max}$','Location', 'southeast', 'Fontsize', 12, 'Interpreter','latex');
+    xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     if opt.saveplots
         print(fig, 'Output/Plots/Direct Approach - Control Components.png', '-dpng', res);
     end
@@ -389,6 +427,7 @@ if ~sim_from_mc
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
     legend('q_{b0}', 'q_{b1}', 'q_{b2}', 'q_{b3}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     subplot(1, 2, 2)
     plot((tspan_ctrl-t0)*TU*sec2hrs, Q_N2C_AOCS_stack(:, 1), 'LineWidth', 1.5)
@@ -399,6 +438,7 @@ if ~sim_from_mc
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
     legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on  
     if opt.saveplots
         print(fig, 'Output/Plots/Body and Commanded Quaternions.png', '-dpng', res);
@@ -415,6 +455,7 @@ plot((tspan_ctrl-t0)*TU*sec2hrs, qe(:, 3), 'LineWidth', 1.5)
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
 legend('q_{e0}', 'q_{e1}', 'q_{e2}', 'q_{e3}', 'fontsize', 10, 'location', 'best')
+xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig, 'Output/Plots/Error Quaternions.png', '-dpng', res);
@@ -430,6 +471,7 @@ plot((tspan_ctrl-t0)*TU*sec2hrs, omega_e(:, 3)/TU, 'LineWidth', 1.5)
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\omega_{ei} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('\omega_{e1}', '\omega_{e2}', '\omega_{e3}', 'fontsize', 10, 'location', 'best')
+xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig, 'Output/Plots/Error Angular Velocity.png', '-dpng', res);
@@ -440,6 +482,7 @@ fig = figure('name', "Error Angle");
 plot((tspan_ctrl-t0)*TU*sec2hrs, rad2deg(angle_e), 'LineWidth', 1.5)
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\Phi_e \, [deg]$', 'interpreter', 'latex', 'fontsize', 12)
+xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig, 'Output/Plots/Error Angle.png', '-dpng', res);
@@ -456,6 +499,7 @@ plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 20)/TU, 'LineWidth', 1.5)
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
+xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 subplot(1, 2, 2)
 plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 21)/TU, 'LineWidth', 1.5)
@@ -466,6 +510,7 @@ plot((tspan_ctrl-t0)*TU*sec2hrs, Y_ctrl(:, 24)/TU, 'LineWidth', 1.5)
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
+xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig, 'Output/Plots/Body and Wheels Angular Velocities.png', '-dpng', res);
@@ -481,6 +526,7 @@ plot((tspan_ctrl-t0)*TU*sec2hrs, Tc(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
 xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
 ylabel('$T_{c,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
 legend('T_{c1}', 'T_{c2}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
 grid on
 if opt.saveplots
     print(fig, 'Output/Plots/Commanded Torque.png', '-dpng', res);
@@ -497,6 +543,7 @@ if opt.include_actuation
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$T_{a,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('T_{a1}', 'T_{a2}', 'T_{a3}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig, 'Output/Plots/Actual Torque.png', '-dpng', res);
@@ -512,6 +559,7 @@ if opt.include_actuation
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$T_{1} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('T_{a1}', 'T_{c1}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     subplot(1, 3, 2)
     plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
@@ -520,6 +568,7 @@ if opt.include_actuation
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$T_{2} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('T_{a2}', 'T_{c2}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     subplot(1, 3, 3)
     plot((tspan_ctrl-t0)*TU*sec2hrs, Ta(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
@@ -528,6 +577,7 @@ if opt.include_actuation
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$T_{3} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('T_{a3}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig, 'Output/Plots/Actual vs Commanded Torque.png', '-dpng', res);
@@ -541,6 +591,7 @@ if misalignment_type ~= "null"
     plot((tspan_ctrl-t0)*TU*sec2hrs, rad2deg(betas), 'LineWidth', 1.5)
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\beta \ [deg]$', 'interpreter', 'latex', 'fontsize', 12)
+    xaxis([(tspan(M_ctrl_DA+1)-60/TU-t0)*TU*sec2hrs, (tspan(M_ctrl_DA+M_ctrl)+60/TU-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig, 'Output/Plots/Beta Angles.png', '-dpng', res);
@@ -550,6 +601,7 @@ if misalignment_type ~= "null"
     plot((tspan_ctrl-t0)*TU*sec2hrs, rad2deg(gammas), 'LineWidth', 1.5)
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\gamma \ [deg]$', 'interpreter', 'latex', 'fontsize', 12)
+    xaxis([(tspan(M_ctrl_DA+1)-60/TU-t0)*TU*sec2hrs, (tspan(M_ctrl_DA+M_ctrl)+60/TU-t0)*TU*sec2hrs])
     grid on   
     if opt.saveplots
         print(fig, 'Output/Plots/Gamma Angles.png', '-dpng', res);
@@ -570,6 +622,7 @@ if include_realignment_manoeuvre
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
     legend('q_{b0}', 'q_{b1}', 'q_{b2}', 'q_{b3}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     subplot(1, 2, 2)
     plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Q_N2C_drift(:, 1), 'LineWidth', 1.5)
@@ -580,6 +633,7 @@ if include_realignment_manoeuvre
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
     legend('q_{c0}', 'q_{c1}', 'q_{c2}', 'q_{c3}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on  
     if opt.saveplots
         print(fig, 'Output/Plots/Realignment - Body and Commanded Quaternions.png', '-dpng', res);
@@ -596,6 +650,7 @@ if include_realignment_manoeuvre
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
     legend('q_{e0}', 'q_{e1}', 'q_{e2}', 'q_{e3}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig, 'Output/Plots/Realignment - Error Quaternions.png', '-dpng', res);
@@ -610,6 +665,7 @@ if include_realignment_manoeuvre
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\omega_{ei} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('\omega_{e1}', '\omega_{e2}', '\omega_{e3}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig, 'Output/Plots/Realignment - Error Angular Velocity.png', '-dpng', res);
@@ -620,6 +676,7 @@ if include_realignment_manoeuvre
     plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, rad2deg(angle_e_drift), 'LineWidth', 1.5)
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\Phi_e \, [deg]$', 'interpreter', 'latex', 'fontsize', 12)
+    xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig, 'Output/Plots/Realignment - Error Angle.png', '-dpng', res);
@@ -635,6 +692,7 @@ if include_realignment_manoeuvre
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     subplot(1, 2, 2)
     plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Y_drift(:, 21)/TU, 'LineWidth', 1.5)
@@ -645,6 +703,7 @@ if include_realignment_manoeuvre
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig, 'Output/Plots/Realignment - Body and Wheels Angular Velocities.png', '-dpng', res);
@@ -660,6 +719,7 @@ if include_realignment_manoeuvre
     xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
     ylabel('$T_{c,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
     legend('T_{c1}', 'T_{c2}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+    xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
     grid on
     if opt.saveplots
         print(fig, 'Output/Plots/Realignment - Commanded Torque.png', '-dpng', res);
@@ -676,6 +736,7 @@ if include_realignment_manoeuvre
         xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$T_{a,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
         legend('T_{a1}', 'T_{a2}', 'T_{a3}', 'fontsize', 10, 'location', 'best')
+        xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
         grid on
         if opt.saveplots
             print(fig, 'Output/Plots/Realignment - Actual Torque.png', '-dpng', res);
@@ -691,6 +752,7 @@ if include_realignment_manoeuvre
         xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$T_{1} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
         legend('T_{a1}', 'T_{c1}', 'fontsize', 10, 'location', 'best')
+        xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
         grid on
         subplot(1, 3, 2)
         plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Ta_drift(:, 2)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
@@ -699,6 +761,7 @@ if include_realignment_manoeuvre
         xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$T_{2} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
         legend('T_{a2}', 'T_{c2}', 'fontsize', 10, 'location', 'best')
+        xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
         grid on
         subplot(1, 3, 3)
         plot((tspan(M_ctrl_DA+M_ctrl+1:end)-t0)*TU*sec2hrs, Ta_drift(:, 3)*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
@@ -707,6 +770,7 @@ if include_realignment_manoeuvre
         xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$T_{3} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
         legend('T_{a3}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+        xaxis([(tspan(M_ctrl_DA+M_ctrl+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
         grid on
         if opt.saveplots
             print(fig, 'Output/Plots/Realignment - Actual vs Commanded Torque.png', '-dpng', res);
@@ -752,6 +816,8 @@ if include_realignment_manoeuvre
         xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$q_i$', 'interpreter', 'latex', 'fontsize', 12)
         legend('q_{e0}', 'q_{e1}', 'q_{e2}', 'q_{e3}', 'fontsize', 10, 'location', 'best')
+        xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
+        yaxis([min(min([qe0, qe])), max(max([qe0, qe]))])
         grid on
         if opt.saveplots
             print(fig, 'Output/Plots/Total - Error Quaternions.png', '-dpng', res);
@@ -766,6 +832,8 @@ if include_realignment_manoeuvre
         xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$\omega_{ei} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
         legend('\omega_{e1}', '\omega_{e2}', '\omega_{e3}', 'fontsize', 10, 'location', 'best')
+        xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
+        yaxis([min(min(omega_e))/TU, max(max(omega_e))/TU])
         grid on
         if opt.saveplots
             print(fig, 'Output/Plots/Total - Error Angular Velocity.png', '-dpng', res);
@@ -776,6 +844,7 @@ if include_realignment_manoeuvre
         plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, rad2deg([angle_e; angle_e_drift]), 'LineWidth', 1.5)
         xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$\Phi_e \, [deg]$', 'interpreter', 'latex', 'fontsize', 12)
+        xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
         grid on
         if opt.saveplots
             print(fig, 'Output/Plots/Total - Error Angle.png', '-dpng', res);
@@ -791,6 +860,7 @@ if include_realignment_manoeuvre
         xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$\omega_i \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
         legend('\omega_{1}', '\omega_{2}', '\omega_{3}', 'fontsize', 10, 'location', 'best')
+        xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
         grid on
         subplot(1, 2, 2)
         plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Y_ctrl(:, 21); Y_drift(:, 21)]/TU, 'LineWidth', 1.5)
@@ -801,6 +871,7 @@ if include_realignment_manoeuvre
         xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$\omega_{si} \, [rad/s]$', 'interpreter', 'latex', 'fontsize', 12)
         legend('\omega_{s1}', '\omega_{s2}', '\omega_{s3}', '\omega_{s4}', 'fontsize', 10, 'location', 'best')
+        xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
         grid on
         if opt.saveplots
             print(fig, 'Output/Plots/Total - Body and Wheels Angular Velocities.png', '-dpng', res);
@@ -816,6 +887,7 @@ if include_realignment_manoeuvre
         xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
         ylabel('$T_{c,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
         legend('T_{c1}', 'T_{c2}', 'T_{c3}', 'fontsize', 10, 'location', 'best')
+        xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
         grid on
         if opt.saveplots
             print(fig, 'Output/Plots/Total - Commanded Torque.png', '-dpng', res);
@@ -831,7 +903,9 @@ if include_realignment_manoeuvre
             plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, [Ta(:, 3); Ta_drift(:, 3)]*1e6*DU^2/TU^2*MU, 'LineWidth', 1.5)
             xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', 12)
             ylabel('$T_{a,i} \ [Nm]$', 'interpreter', 'latex', 'fontsize', 12)
-            legend('T_{a1}', 'T_{a2}', 'T_{a3}', 'fontsize', 10, 'location', 'best')
+            legend('T_{a1}', 'T_{a2}', 'T_{a3}', 'fontsize', 10, 'location', 'northwest')
+            xaxis([(tspan(M_ctrl_DA+1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
+            yaxis([min(min(Ta)), max(max(Ta))])
             grid on
             if opt.saveplots
                 print(fig, 'Output/Plots/Total - Actual Torque.png', '-dpng', res);
