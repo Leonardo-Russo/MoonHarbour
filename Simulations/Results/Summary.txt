@@ -1,5 +1,0 @@
-berthing_60s_part2 has the final drift error part, but part 1 doesn't
-
-I'm redoing berthing_60s_act_part1 to add the final drift error part.
-
-I could only redo that and docking_60s_act since I will only show results with actuation.

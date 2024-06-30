@@ -12,15 +12,15 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "berthing_60s_new_part1";        % specific results identifier
+sim_id_tot = "berthing_60s_new";        % specific results identifier
 
 % Docking 60s
 % 1) -
 % 2) -
 
 % Berthing 60s
-% 1) todo
-% 2) 
+% 1) 27 is the emergency one
+% 2) 30 is the emergency one
 
 % Docking 60s act
 % 1) -
