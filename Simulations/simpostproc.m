@@ -14,7 +14,7 @@ addpath('../Data/Ephemeris/')
 %% Post-Processing
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "docking_60s_new_part2";        % specific results identifier
+sim_id_tot = "berthing_60s_new_part1";        % specific results identifier
 
 load(strcat(root_dir, "/", sim_id_tot, "/", sim_id_tot, ".mat"));
 

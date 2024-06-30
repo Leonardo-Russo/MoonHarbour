@@ -42,12 +42,12 @@ if isempty(pool)
 end
 
 % Define Simulation Options
-sim_id = "docking_60s_new_part2";
+sim_id = "berthing_60s_new_part3";
 mkdir(strcat("Results/", sim_id));
 sampling_time = 60;                     % seconds
 verbose = true;
-final_velocity = -1e-5;                 % -1 cm/s
-% final_velocity = -5e-6;                 % -5 mm/s
+% final_velocity = -1e-5;                 % -1 cm/s
+final_velocity = -5e-6;                 % -5 mm/s
 misalignment_type = "oscillating";
 state_perturbation_flag = true;
 engine_failure_flag = true;
