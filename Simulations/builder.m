@@ -12,7 +12,7 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "berthing_60s_new";        % specific results identifier
+sim_id_tot = "berthing_60s_finalfinal";        % specific results identifier
 
 % Docking 60s
 % 1) -
@@ -23,12 +23,10 @@ sim_id_tot = "berthing_60s_new";        % specific results identifier
 % 2) 30 is the emergency one
 
 % Docking 60s act
-% 1) -
-% 2) -
+% - 
 
 % Berthing 60s act
-% 1) 9 is the emergency manoeuvre
-% 2) 18 is the emergency manoeuvre
+% - 82 is the emergency manoeuvre
 
 %% Extract the Results
 
@@ -46,6 +44,7 @@ close all
 
 % Create the Results table
 results_table = array2table(table, 'VariableNames', {'id', 'status', 'dr (m)', 'dtheta (m)', 'dh (m)', 'dv_r (m/s)', 'dv_theta (m/s)', 'dv_h (m/s)', 'delta_rho (m)', 'delta_rhodot (m/s)', 'omega_ef (rad/s)', 'angle_e (deg)'});
+% results_table = array2table(table, 'VariableNames', {'id', 'status', 'dr (m)', 'dtheta (m)', 'dh (m)', 'dv_r (m/s)', 'dv_theta (m/s)', 'dv_h (m/s)', 'delta_rho (m)', 'delta_rhodot (m/s)'});
 excel_filepath = fullfile(root_dir, sim_id_tot, strcat(sim_id_tot, ".xlsx"));
 writetable(results_table, excel_filepath);
 disp(results_table);

@@ -14,7 +14,7 @@ addpath('../Data/Utils/')
 
 
 % Define the n° of simulations
-MC = 56;
+MC = 104;
 
 % Preallocate Data
 data = struct('status', [], 'RHO_LVLH', [], 'M_ctrl_DA', [], 'DU', [], 'RHOd_LVLH', [], 'color', [], 'dist', [], 'vel', [], 'successful', [], 'deltaState', [], 'failure_times', [], 'misalignments', [], ...
@@ -42,7 +42,7 @@ if isempty(pool)
 end
 
 % Define Simulation Options
-sim_id = "berthing_60s_new_part3";
+sim_id = "berthing_60s_finalfinal";
 mkdir(strcat("Results/", sim_id));
 sampling_time = 60;                     % seconds
 verbose = true;

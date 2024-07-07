@@ -11,10 +11,10 @@ addpath('../Data/Planets/')
 addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
-root_dir = "Results";       % root results folder
+root_dir = "Results/Partial Results";       % root results folder
 sim_id1 = "berthing_60s_new_part1";
 sim_id2 = "berthing_60s_new_part2";        % specific results identifier
-sim_id_tot = "berthing_60s_new";
+sim_id_tot = "test";
 idx1 = 51;
 idx2 = 51;
 

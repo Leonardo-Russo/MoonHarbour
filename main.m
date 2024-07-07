@@ -23,36 +23,36 @@ state_perturbation_flag = false;
 engine_failure_flag = false;
 workspace_path = "Data/Utils/main.mat";
 
-parfmain(sampling_time, include_actuation, final_velocity, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path);
+% parfmain(sampling_time, include_actuation, final_velocity, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path);
 
 % return
 %% Visualize the Results
 clc
 close all
 
-load('Data/Utils/main.mat');
+% load('Data/Utils/main.mat');
 
 % load('Results/berthing_60s_act_combined/main.mat');
 
-sim_from_mc = false;
+sim_from_mc = true;
 
-% sim_id = "docking_60s_act_new_part1";
-% load(strcat("Simulations/Results/", sim_id, "/", sim_id, ".mat"), 'data');
-% sim_n = 10;
-% 
-% [RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
-%     renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
-%     qe0, qe, Tc, Ta, omega_e, omega_e_norms, angle_e, betas, gammas, acc, ...
-%     deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
-%     Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
-%     omega_e_drift, omega_e_drift_norms, angle_e_drift] = workspace_from_data(data(sim_n));
-% 
-% sec2hrs = 1/3600;
-% runtime = 0;            % I don't know the runtime :(
-% g0 = 9.80665;           % m/s^2
-% u_limit = 5e-5*g0;      % m/s^2
-% MU = 1/DU^2;
-% opt.include_actuation = true;
+sim_id = "berthing_60s_act_finalfinal";
+load(strcat("Simulations/Results/", sim_id, "/", sim_id, ".mat"), 'data');
+sim_n = 84;
+
+[RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
+    renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
+    qe0, qe, Tc, Ta, omega_e, omega_e_norms, angle_e, betas, gammas, acc, ...
+    deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
+    Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
+    omega_e_drift, omega_e_drift_norms, angle_e_drift] = workspace_from_data(data(sim_n));
+
+sec2hrs = 1/3600;
+runtime = 0;            % I don't know the runtime :(
+g0 = 9.80665;           % m/s^2
+u_limit = 5e-5*g0;      % m/s^2
+MU = 1/DU^2;
+opt.include_actuation = true;
 
 
 opt.saveplots = true;
@@ -107,7 +107,7 @@ Cd_LVLH_T = DrawTrajLVLH3D(RHOd_LVLH(M_ctrl_DA+1:end, 1:3)*DU, '#6efad2', '-.');
 % legend([C_LVLH_T, Cd_LVLH_T, vp_T], {'Chaser Trajectory', 'Reference Trajectory', 'Terminal Via Points'}, 'location', 'best')
 % legend([C_LVLH_T, Cd_LVLH_T], {'Chaser Trajectory', 'Reference Trajectory'}, 'location', 'best')
 % view(-55, 15)
-% view(0, 90)
+view(0, 90)
 delete(Cd_LVLH_T)
 if opt.saveplots
     print(fig, 'Output/Plots/Trajectory Terminal LVLH.png', '-dpng', res);
