@@ -12,18 +12,10 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "berthing_60s_finalfinal";        % specific results identifier
-
-% Docking 60s
-% 1) -
-% 2) -
+sim_id_tot = "berthing_60s";        % specific results identifier
 
 % Berthing 60s
-% 1) 27 is the emergency one
-% 2) 30 is the emergency one
-
-% Docking 60s act
-% - 
+% - 84 is the emergency one
 
 % Berthing 60s act
 % - 82 is the emergency manoeuvre
@@ -66,7 +58,7 @@ for k = 1 : MC
     end
 
 end
-% return
+return
 terminal_traj = figure('name', 'Terminal Chaser Trajectory in LVLH Space');
 for k = 1 : MC
 

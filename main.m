@@ -36,9 +36,9 @@ close all
 
 sim_from_mc = true;
 
-sim_id = "berthing_60s_act_finalfinal";
+sim_id = "berthing_60s_act";
 load(strcat("Simulations/Results/", sim_id, "/", sim_id, ".mat"), 'data');
-sim_n = 84;
+sim_n = 1;
 
 [RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
     renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
@@ -55,7 +55,7 @@ MU = 1/DU^2;
 opt.include_actuation = true;
 
 
-opt.saveplots = true;
+opt.saveplots = false;
 opt.additional_plots = false;
 include_realignment_manoeuvre = 1;
 direct_approach_results = 1;
