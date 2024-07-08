@@ -20,6 +20,31 @@ Rendezvous and docking are two critical phases in spaceflight involving the appr
 3. **Safety and Reliability**: Ensure the highest standards of safety and reliability in all rendezvous and docking operations.
 4. **Supporting Lunar Exploration**: Contribute to the broader goal of sustainable lunar exploration and long-term space habitation.
 
+## Technical Details
+This project builds on high-fidelity orbital dynamical modeling using the extended Battin-Giorgi equations to understand relative orbit motion accurately. Key contributions include:
+
+### Dynamics and Control Strategies
+- **Trajectory Control**: Implemented through feedback linearization algorithms to ensure collision-free maneuvers.
+- **Attitude Control**: Ensured via feedback linearization and Lyapunov's method for stability and precise alignment.
+
+### Actuation and Steering
+- **Actuation Devices and Steering Laws**: Modeled to effectively implement control strategies.
+
+### Trajectory Planning
+- **Two-point and Three-point Methods**: Employed for safe trajectory planning and collision avoidance, including emergency maneuvers.
+
+### Mission Phases
+1. **Rendezvous (1500m to 100m)**: Focused on orbital control to correctly position the spacecraft.
+2. **Final Approach (100m to 10m)**: Involves orbital control, attitude adjustments, and actuation for precise alignment.
+3. **Drift and Mating (10m to 5m)**: Maintains precise attitude control and actuation for smooth docking or berthing.
+
+### Attitude Control System
+- Designed using a feedback law with quasi-global stability properties, ensuring correct spacecraft orientation for successful docking or berthing.
+
+### Testing and Validation
+- Extensive testing of docking and berthing scenarios under nominal and non-nominal conditions.
+- Monte Carlo simulations demonstrate the effectiveness of control strategies for safe and precise maneuvers.
+
 ## Collaboration
 MoonHarbour is open to collaboration with international space agencies, research institutions, and private sector partners.
 
