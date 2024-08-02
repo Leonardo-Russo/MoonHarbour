@@ -18,7 +18,7 @@ T = rMatrixLVLH(:, 2);
 H = rMatrixLVLH(:, 3);
 
 if show_spheres
-    [x,y,z]=sphere;
+    [x,y,z]=sphere(100);
     rT = 5e-3;      % km - S/C approximated as a sphere of 5 meter radius
     % I = imread('titanium.jpg');
     I = imread('black.jpg');
@@ -34,9 +34,9 @@ hold on
 
 grid on
 axis equal
-xlabel('$r \ [km]$', 'Interpreter','latex', 'FontSize', 12)
-ylabel('$\theta \ [km]$', 'Interpreter','latex', 'FontSize', 12)
-zlabel('$h \ [km]$', 'Interpreter','latex', 'FontSize', 12)
+xlabel('$r \ [$km$]$', 'Interpreter','latex', 'FontSize', 12)
+ylabel('$\theta \ [$km$]$', 'Interpreter','latex', 'FontSize', 12)
+zlabel('$h \ [$km$]$', 'Interpreter','latex', 'FontSize', 12)
 view([30, 30])
 
 

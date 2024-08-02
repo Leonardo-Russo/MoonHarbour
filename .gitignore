@@ -9,3 +9,4 @@ Simulations/Results/**/*.mat
 Results/**/*.mat
 debug.mat
 Data/Utils/main.mat
+Data/Utils/*.mat

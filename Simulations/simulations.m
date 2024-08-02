@@ -14,7 +14,7 @@ addpath('../Data/Utils/')
 
 
 % Define the n° of simulations
-MC = 104;
+MC = 32;
 
 % Preallocate Data
 data = struct('status', [], 'RHO_LVLH', [], 'M_ctrl_DA', [], 'DU', [], 'RHOd_LVLH', [], 'color', [], 'dist', [], 'vel', [], 'successful', [], 'deltaState', [], 'failure_times', [], 'misalignments', [], ...
@@ -42,7 +42,7 @@ if isempty(pool)
 end
 
 % Define Simulation Options
-sim_id = "berthing_60s_finalfinal";
+sim_id = "berthing_60s_act_iacs";
 mkdir(strcat("Results/", sim_id));
 sampling_time = 60;                     % seconds
 verbose = true;
@@ -51,7 +51,7 @@ final_velocity = -5e-6;                 % -5 mm/s
 misalignment_type = "oscillating";
 state_perturbation_flag = true;
 engine_failure_flag = true;
-include_actuation = false;
+include_actuation = true;
 
 parfor (mc = 1 : MC, pool.NumWorkers)
 % for mc = 1 : MC

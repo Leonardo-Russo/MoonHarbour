@@ -14,7 +14,7 @@ addpath('../Data/Ephemeris/')
 %% Post-Processing
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "berthing_60s_finalfinal";        % specific results identifier
+sim_id_tot = "berthing_60s_act_iac";        % specific results identifier
 
 load(strcat(root_dir, "/", sim_id_tot, "/", sim_id_tot, ".mat"));
 
@@ -58,25 +58,25 @@ end
 
 %% Cut some Simulations
 
-cut_sims = 1;
-
-if cut_sims
-    cut_idx = 48;
-    data(cut_idx) = data(101);
-    table(cut_idx, 2:end) = table(101, 2:end);
-
-    cut_idx = 84;
-    data(cut_idx) = data(104);
-    table(cut_idx, 2:end) = table(104, 2:end);
-
-    MC = 100;
-    data = data(1:100);
-    table = table(1:100, :);
-
-    cmap_tot = lines(MC);
-    for k = 1 : MC
-        data(k).color = cmap_tot(k, :);
-    end
-end
+% cut_sims = 1;
+% 
+% if cut_sims
+%     cut_idx = 48;
+%     data(cut_idx) = data(101);
+%     table(cut_idx, 2:end) = table(101, 2:end);
+% 
+%     cut_idx = 84;
+%     data(cut_idx) = data(104);
+%     table(cut_idx, 2:end) = table(104, 2:end);
+% 
+%     MC = 100;
+%     data = data(1:100);
+%     table = table(1:100, :);
+% 
+%     cmap_tot = lines(MC);
+%     for k = 1 : MC
+%         data(k).color = cmap_tot(k, :);
+%     end
+% end
 
 save(strcat(root_dir, "/", sim_id_tot, "/", sim_id_tot, ".mat"), 'sim_id', 'sampling_time', 'final_velocity', 'misalignment_type', 'engine_failure_flag', 'state_perturbation_flag', 'include_actuation', 'data', 'table', 'MC');

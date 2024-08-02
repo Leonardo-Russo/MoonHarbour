@@ -63,7 +63,7 @@ RHOf_LVLH_DA = [rhof_LVLH_DA; rhodotf_LVLH_DA];
 
 %% Show Reference Trajectory
 
-everything = 1;
+everything = 0;
 
 % Load Data from Ephemeris - states are provided in ECI
 load('Ephemeris.mat', 'stateDSG', 'stateMoon', 'stateSun', 'time');
@@ -194,6 +194,11 @@ COEt_ref = MEE2COE(MEEt_ref);
 % Conversion from COE to MCI
 Xt_MCI_ref = COE2rvPCI(COEt_ref, muM);
 
+distance = zeros(length(tspan_ref), 1);
+for j = 1 : length(tspan_ref)
+    distance(j) = norm(Xt_MCI_ref(j, 1:3) - stateDSG_MCI(j, 1:3))*DU;
+end
+
 % % Interpolate the Angular Velocity of LVLH wrt MCI
 % [omegaPPsLVLH, omegadotPPsLVLH] = TargetHandler(Xt_MCI_ref, COEt_ref, MEEt_ref, tspan_ref, ...
 %     EarthPPsMCI, SunPPsMCI, MoonPPsECI, deltaE, psiM, deltaM, muE, muS);
@@ -209,8 +214,17 @@ savefig(fig_syn, 'reference_trajectory_SYN.fig');
 print(fig_syn, 'reference_trajectory_SYN.png', '-dpng', '-r600');
 
 view([0, 90]);
-print(fig_syn, 'reference_trajectory_SYN_top.png', '-dpng', '-r600');
+% print(fig_syn, 'reference_trajectory_SYN_top.png', '-dpng', '-r600');
 
+% Plot the Distance over time
+fig = figure('name', 'distance over time');
+plot((time-t0)*TU/Dsol, distance, 'LineStyle','-', 'LineWidth', 1.5, 'Color', '#03adfc')
+grid on
+xlabel('$t \ [days]$', 'Interpreter','latex', 'FontSize', 12)
+ylabel('$\Delta r \ [km]$', 'Interpreter','latex', 'FontSize', 12)
+xlim([0, 7])
+savefig(fig, 'distance.fig');
+print(fig, 'distance.png', '-dpng', '-r600');
 
 
 % % Compute COE for DSG
