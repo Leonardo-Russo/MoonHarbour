@@ -98,7 +98,6 @@ for j = 1 : M
     end
 end
 
-
 % Three Via Points Method
 if collision
 

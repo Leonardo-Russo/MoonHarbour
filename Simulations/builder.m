@@ -14,11 +14,8 @@ addpath('../Data/Ephemeris/')
 root_dir = "Results";       % root results folder
 sim_id_tot = "berthing_60s";        % specific results identifier
 
-% Berthing 60s
-% - 84 is the emergency one
-
 % Berthing 60s act
-% - 82 is the emergency manoeuvre
+% - 84 is the emergency manoeuvre
 
 %% Extract the Results
 
@@ -58,7 +55,7 @@ for k = 1 : MC
     end
 
 end
-return
+% return
 terminal_traj = figure('name', 'Terminal Chaser Trajectory in LVLH Space');
 for k = 1 : MC
 
@@ -106,8 +103,8 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$\rho_r \ [km]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$\rho_r \ [$km$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(r_comp, fullfile(root_dir, sim_id_tot, "state_components - r.fig"));
@@ -127,8 +124,8 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$\rho_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$\rho_\theta \ [$km$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(theta_comp, fullfile(root_dir, sim_id_tot, "state_components - theta.fig"));
@@ -148,8 +145,8 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$\rho_h \ [km]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$\rho_h \ [$km$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(h_comp, fullfile(root_dir, sim_id_tot, "state_components - h.fig"));
@@ -169,8 +166,8 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$\dot{\rho}_r \ [km]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$\dot{\rho}_r \ [$km/s$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(rdot_comp, fullfile(root_dir, sim_id_tot, "state_components - rdot.fig"));
@@ -190,8 +187,8 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$\dot{\rho}_\theta \ [km]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$\dot{\rho}_\theta \ [$km/s$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(thetadot_comp, fullfile(root_dir, sim_id_tot, "state_components - thetadot.fig"));
@@ -211,12 +208,83 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$\dot{\rho}_h \ [km]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$\dot{\rho}_h \ [$km/s$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(hdot_comp, fullfile(root_dir, sim_id_tot, "state_components - hdot.fig"));
 print(hdot_comp, fullfile(root_dir, sim_id_tot, "state_components - hdot.png"), '-dpng', res);          % 300 DPI
+
+% Distance
+dist_fig = figure('Name', 'Distance');
+hold on
+grid on
+for k = 1 : MC
+    if data(k).status == -1
+        continue;                   % skip failed simulations
+    end
+
+    color = data(k).color;
+    plot((data(k).tspan - data(k).t0)*data(k).TU/3600, data(k).dist*data(k).DU, 'Color', color, 'LineStyle','-', 'LineWidth', line_width);
+end
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels);
+ylabel('$|\rho| \ [$km$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels);
+xlim([(data(1).tspan(1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600]);
+set(gca, 'FontSize', fontsize_axes);
+
+zoomPos = [0.45, 0.5, 0.4, 0.35]; % set position of the zoomed plot [left, bottom, width, height]
+zb = axes('position', zoomPos);
+box on  % adds a box around the new axes
+for k = 1 : MC
+    if data(k).status == -1
+        continue;                   % skip failed simulations
+    end
+
+    plot((data(k).tspan(data(k).M_ctrl_DA+1:end) - data(k).t0)*data(k).TU/3600, data(k).dist(data(k).M_ctrl_DA+1:end)*data(k).DU, 'Color', data(k).color, 'LineStyle','-', 'LineWidth', line_width);
+    grid on
+    hold on % keep the previous plots
+end
+xlim([(data(1).tspan(data(1).M_ctrl_DA+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', 10)
+ylabel('$|\rho| \ [$km$]$', 'interpreter', 'latex', 'fontsize', 10)
+savefig(dist_fig, fullfile(root_dir, sim_id_tot, "distance.fig"));
+print(dist_fig, fullfile(root_dir, sim_id_tot, "distance.png"), '-dpng', res);          % 300 DPI
+
+
+% Velocity
+vel_fig = figure('Name', 'Velocity');
+hold on
+grid on
+
+for k = 1 : MC
+    if data(k).status == -1
+        continue;                   % skip failed simulations
+    end
+
+    color = data(k).color;
+    plot((data(k).tspan - data(k).t0)*data(k).TU/3600, data(k).vel*data(k).DU, 'Color', color, 'LineStyle','-', 'LineWidth', line_width);
+end
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels);
+ylabel('$|\dot{\rho}| \ [$km/s$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels);
+xlim([(data(1).tspan(1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600]);
+set(gca, 'FontSize', fontsize_axes);
+
+zb = axes('position', zoomPos);
+box on  % adds a box around the new axes
+for k = 1 : MC
+    if data(k).status == -1
+        continue;                   % skip failed simulations
+    end
+    
+    plot((data(k).tspan(data(k).M_ctrl_DA+1:end) - data(k).t0)*data(k).TU/3600, data(k).vel(data(k).M_ctrl_DA+1:end)*data(k).DU, 'Color', data(k).color, 'LineStyle','-', 'LineWidth', line_width);
+    grid on
+    hold on % keep the previous plots
+end
+xlim([(data(1).tspan(data(1).M_ctrl_DA+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', 10)
+ylabel('$|\dot{\rho}| \ [$km/s$]$', 'interpreter', 'latex', 'fontsize', 10)
+savefig(vel_fig, fullfile(root_dir, sim_id_tot, "velocity.fig"));
+print(vel_fig, fullfile(root_dir, sim_id_tot, "velocity.png"), '-dpng', res);          % 300 DPI
 
 
 qe0_fig = figure('Name', 'Realignment - Error Quaternions - qe0');
@@ -233,7 +301,7 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 ylabel('$q_{e0}$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+data(1).M_ctrl+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
@@ -255,7 +323,7 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 ylabel('$q_{e1}$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+data(1).M_ctrl+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
@@ -277,7 +345,7 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 ylabel('$q_{e2}$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+data(1).M_ctrl+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
@@ -299,7 +367,7 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 ylabel('$q_{e3}$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+data(1).M_ctrl+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
@@ -321,8 +389,8 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$\omega_{e1} \ [rad/s]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$\omega_{e1} \ [$rad/s$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+data(1).M_ctrl+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(omega_e1_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e1.fig"));
@@ -343,8 +411,8 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$\omega_{e2} \ [rad/s]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$\omega_{e2} \ [$rad/s$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+data(1).M_ctrl+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(omega_e2_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e2.fig"));
@@ -365,8 +433,8 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$\omega_{e3} \ [rad/s]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$\omega_{e3} \ [$rad/s$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+data(1).M_ctrl+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(omega_e3_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e3.fig"));
@@ -387,8 +455,8 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$|\omega_{e}| \ [rad/s]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$|\omega_{e}| \ [$rad/s$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+data(1).M_ctrl+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(omega_e_norms_fig, fullfile(root_dir, sim_id_tot, "realignment - omega_e_norms.fig"));
@@ -409,8 +477,8 @@ for k = 1 : MC
     grid on
 
 end
-xlabel('$t \ [hrs]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
-ylabel('$\Phi_{e} \ [deg]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$\Phi_{e} \ [$deg$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
 xlim([(data(1).tspan(data(1).M_ctrl_DA+data(1).M_ctrl+1) - data(1).t0)*data(1).TU/3600, (data(1).tspan(end) - data(1).t0)*data(1).TU/3600])
 set(gca, 'FontSize', fontsize_axes);
 savefig(angle_e_fig, fullfile(root_dir, sim_id_tot, "realignment - angle_e.fig"));

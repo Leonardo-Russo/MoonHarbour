@@ -323,6 +323,8 @@ for branch = 1 : max_branches
         [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], NaN, t1_0, NaN);
     end
 
+    % testPPs(RHOdPPsLVLH_rt(1:3), linspace(t0_rt, t0_backdrift, 1000));
+
     % Set Final Propagation Time and Define timespan
     if length(t_viapoints_rt) >= 3
         if t0_rt + dt_min < t_viapoints_rt(2)
@@ -864,34 +866,55 @@ if include_realignment_manoeuvre
     
     c3_MCI = [0, 0, 1]';
     c1_MCI = [1, 0, 0]';
+
+    qb0_0_drift = Y_ctrl(end, 14);
+    qb_0_drift = Y_ctrl(end, 15:17)';
     
     for i = 1 : M_drift
-    
-        xc_LVLH = [-1, 0, 0]';      % xc aligned with direction opposite to engines
-    
-        % Rotate from LVLH to MCI
-        [R_LVLH2MCI, ~] = get_rotLVLH2MCI(Xt_MCI_drift(i, :)', tspan_drift(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
-        xc_MCI_drift(i, :) = R_LVLH2MCI*xc_LVLH;
-    
-        % Choose Commanded Reference Frame approach
-        if i == 1
-            if norm(cross(c3_MCI, xc_MCI_drift(i, :)')) > ref_axis_tol
-                ref3_MCI = c3_MCI;      % sets c3_MCI as the initial third axis reference
-            else
-                ref3_MCI = c1_MCI;      % sets c1_MCI as the initial third axis reference
-                error('Second Commanded Attitude approach still needs to be defined.')
+        
+        if final_velocity == -1e-5          % DOCKING SCENARIO
+            
+            % xc_LVLH = [-1, 0, 0]';      % xc aligned with direction opposite to engines
+            xc_LVLH = [1, 0, 0]';      % xc aligned with direction opposite to engines
+        
+            % Rotate from LVLH to MCI
+            [R_LVLH2MCI, ~] = get_rotLVLH2MCI(Xt_MCI_drift(i, :)', tspan_drift(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
+            xc_MCI_drift(i, :) = R_LVLH2MCI*xc_LVLH;
+        
+            % Choose Commanded Reference Frame approach
+            if i == 1
+                if norm(cross(c3_MCI, xc_MCI_drift(i, :)')) > ref_axis_tol
+                    ref3_MCI = c3_MCI;      % sets c3_MCI as the initial third axis reference
+                else
+                    ref3_MCI = c1_MCI;      % sets c1_MCI as the initial third axis reference
+                    error('Second Commanded Attitude approach still needs to be defined.')
+                end
             end
+        
+            % Continue Computing Commanded Attitude
+            yc_MCI_drift(i, :) = cross(ref3_MCI, xc_MCI_drift(i, :)')/norm(cross(ref3_MCI, xc_MCI_drift(i, :)'));
+            zc_MCI_drift(i, :) = cross(xc_MCI_drift(i, :)', yc_MCI_drift(i, :)');
+            
+        elseif final_velocity == -5e-6      % BERTHING SCENARIO
+
+            xc_LVLH = [0, 0, -1]';
+            zc_LVLH = [-1, 0, 0]';
+            yc_LVLH = cross(zc_LVLH, xc_LVLH) / norm(cross(zc_LVLH, xc_LVLH));
+        
+            % Rotate from LVLH to MCI
+            [R_LVLH2MCI, ~] = get_rotLVLH2MCI(Xt_MCI_drift(i, :)', tspan_drift(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
+            xc_MCI_drift(i, :) = R_LVLH2MCI*xc_LVLH;
+            yc_MCI_drift(i, :) = R_LVLH2MCI*yc_LVLH;
+            zc_MCI_drift(i, :) = R_LVLH2MCI*zc_LVLH;
+
         end
-    
-        % Continue Computing Commanded Attitude
-        yc_MCI_drift(i, :) = cross(ref3_MCI, xc_MCI_drift(i, :)')/norm(cross(ref3_MCI, xc_MCI_drift(i, :)'));
-        zc_MCI_drift(i, :) = cross(xc_MCI_drift(i, :)', yc_MCI_drift(i, :)');
     
         R_N2C_drift(:, :, i) = [xc_MCI_drift(i, :)', yc_MCI_drift(i, :)', zc_MCI_drift(i, :)']';
     
         if i == 1
             signvect = [1 1 1 1]';
             [q0c, qc] = matrixToQuat(R_N2C_drift(:, :, i));
+            sign_qe0_0_drift = sign(qc0_0*qb0_0_drift + qc_0'*qb_0_drift);
         else
             [q0c, qc] = matrixToQuat(R_N2C_drift(:, :, i)); 
         end
@@ -924,7 +947,7 @@ if include_realignment_manoeuvre
     
     % Perform the Attitude Propagation during Final Drift - ode113
     [~, Y_drift] = ode113(@(t, Y) AOCS(t, Y, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, omega_n, DU, TU, MU, branch, TCC_drift_PPs, omega_cPPs_drift, omegadot_cPPs_drift, Q_N2C_PPs_drift, sign_qe0_0, misalignment, failure_times, opt.show_progress, 1, opt.include_actuation, emergency_manoeuvre_flag, rho0_LVLH, rhof_LVLH, 1), ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, omega_n, DU, TU, MU, branch, TCC_drift_PPs, omega_cPPs_drift, omegadot_cPPs_drift, Q_N2C_PPs_drift, sign_qe0_0_drift, misalignment, failure_times, opt.show_progress, 1, opt.include_actuation, emergency_manoeuvre_flag, rho0_LVLH, rhof_LVLH, 1), ...
         tspan_drift, Y_ctrl(end, :)', optODE_AOCS);
 
     TCC_drift = Y_drift(:, 1:13);
@@ -1066,7 +1089,7 @@ for i = 1 : size(RHO_LVLH, 1)
             % AOCS Reconstruction
             [dY, ~, ~, ~, u(i, :), ~, ~, ~, f_norms(i), Tc_drift(ss, :), Ta_drift(ss, :), ~, ~, ~] = ...
                 AOCS(tspan_drift(ss), Y_drift(ss, :)', EarthPPsMCI, SunPPsMCI, muM, ...
-                muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, omega_n, DU, TU, MU, k, TCC_drift_PPs, omega_cPPs_drift, omegadot_cPPs_drift, Q_N2C_PPs_drift, sign_qe0_0, misalignment, failure_times, 0, 1, opt.include_actuation, emergency_manoeuvre_flag, rho0_LVLH, rhof_LVLH, 1);
+                muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, omega_n, DU, TU, MU, k, TCC_drift_PPs, omega_cPPs_drift, omegadot_cPPs_drift, Q_N2C_PPs_drift, sign_qe0_0_drift, misalignment, failure_times, 0, 1, opt.include_actuation, emergency_manoeuvre_flag, rho0_LVLH, rhof_LVLH, 1);
                 
             kp_store(i) = kp;
             u_norms(i) = norm(u(i, :));
