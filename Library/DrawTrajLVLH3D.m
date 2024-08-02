@@ -24,8 +24,8 @@ if show_spheres
     I = imread('black.jpg');
     surface(rT*x, rT*y, rT*z, flipud(I), 'FaceColor', 'texturemap', 'EdgeColor', 'none', 'CDataMapping', 'direct')
     hold on
-    radius = 10e-3;
-    surface(radius*x, radius*y, radius*z, 'FaceColor', '#ffcf82', 'EdgeColor', 'none', 'CDataMapping', 'direct', 'FaceAlpha', 0.2)
+    exclusion_radius = 15e-3;
+    surface(exclusion_radius*x, exclusion_radius*y, exclusion_radius*z, 'FaceColor', '#ffcf82', 'EdgeColor', 'none', 'CDataMapping', 'direct', 'FaceAlpha', 0.2)
 end
 
 P = plot3(R,T,H,'Color',color, 'Linestyle', linestyle, 'LineWidth', 1.5);

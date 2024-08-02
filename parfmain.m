@@ -3,7 +3,7 @@ function [RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ..
             qe0, qe, Tc, Ta, omega_e, omega_e_norms, angle_e, betas, gammas, acc, ...
             deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
             Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
-            omega_e_drift, omega_e_drift_norms, angle_e_drift] = parfmain(sampling_time, include_actuation, final_velocity, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path)
+            omega_e_drift, omega_e_drift_norms, angle_e_drift] = parfmain(scenario, sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path)
 
 if nargin < 8
     workspace_path = "none";
@@ -37,9 +37,17 @@ misalignments = [];
 misalignment0 = define_misalignment_error(misalignment_type);
 misalignments = [misalignments; misalignment0];
 
+if scenario == "docking"
+    final_velocity = -1e-5;                 % -1 cm/s
+elseif scenario == "berthing"
+    final_velocity = -5e-6;                 % -5 mm/s
+else
+    error("Invalid Scenario!");
+end
+
 
 tic
-%% Hyperparameters and Settings
+%% Hyperparameters
 
 % Define Global Variables
 global DU TU MU Rm muM pbar log
@@ -74,14 +82,18 @@ rhodot0_LVLH = [-1e-6, -1e-3, -1e-3]'/DU*TU;        % km/s
 RHO0_LVLH = [rho0_LVLH; rhodot0_LVLH];
 
 % Define Direct Approach Conditions
-final_dist = 5e-3/DU;       % 5 m
+if scenario == "docking"
+    final_dist = 5e-3/DU;       % 5 m
+elseif scenario == "berthing"
+    final_dist = 10.5e-3/DU;       % 10.5 m
+end
 final_vel = final_velocity/DU*TU;
 rhof_LVLH_DA = final_dist * RHO0_LVLH(1:3)/norm(RHO0_LVLH(1:3));
 rhodotf_LVLH_DA = final_vel * RHO0_LVLH(1:3)/norm(RHO0_LVLH(1:3));
 RHOf_LVLH_DA = [rhof_LVLH_DA; rhodotf_LVLH_DA];
 
 
-%% Propagate Reference Target Trajectory
+%% High-Fidelity Propagation of Gateway's Trajectory
 
 % Interpolate the Ephemeris and Retrieve Target's Initial State
 [X0t_MCI, COE0t, MEE0t, EarthPPsMCI, DSGPPsMCI, SunPPsMCI, MoonPPsECI, time, t0, tf, opt.N] = ...
@@ -112,13 +124,17 @@ Xt_MCI_ref = COE2rvPCI(COEt_ref, muM);
     EarthPPsMCI, SunPPsMCI, MoonPPsECI, deltaE, psiM, deltaM, muE, muS);
 
 
-%% Direct Approach: Chaser Backwards Propagation from Final Conditions
+%% Close-Range Rendezvous: Backwards Propagation from Final Conditions
 
 % Combine the Target and Chaser States into TC ~ [Target; Chaser] State
 TC0 = [MEE0t; RHO0_LVLH];
 
 % Define Natural Drift Propagation Settings
-optODE_back = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_back(t, Y));
+if scenario == "docking"
+    optODE_back = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_back_docking(t, Y));
+elseif scenario == "berthing"
+    optODE_back = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_back_berthing(t, Y));
+end
 
 % Define the Backwards Drift tspan
 tspan_back_DA = linspace(tf, t0 + (tf-t0)/2, opt.N);
@@ -141,10 +157,12 @@ TC0_backdrift_DA = TC_backdrift_DA(end, :)';
 t0_backdrift_DA = tspan_back_DA(end);
 
 
-%% Direct Approach: Generate the Reference Chaser Trajectory for Hybrid Predictive Control
+%% Close-Range Rendezvous: Generate Reference Trajectory
+
+exclusion_radius = 15e-3/DU;
 
 % Set the Via Points and Interpolate the Reference Trajectory
-[RHOdPPsLVLH_DA, viapoints_DA, t_viapoints_DA] = ReferenceTrajectory(TC0, TC0_backdrift_DA, t0, t0_backdrift_DA, [0, 1]);
+[RHOdPPsLVLH_DA, viapoints_DA, t_viapoints_DA] = ReferenceTrajectory(TC0, TC0_backdrift_DA, t0, t0_backdrift_DA, [0, 1], exclusion_radius);
 
 % Control Settings
 prediction_interval_DA = 120;                  % s - one prediction every 2 minutes
@@ -161,7 +179,7 @@ prediction_delta_DA = (30*60)/TU;      % predictive propagation of 30 min forwar
 N_inner_DA = round(prediction_delta_DA/dt_ref) - 1;       % n° of points in the inner propagation
 
 
-%% Direct Approach: Perform Chaser Rendezvous Manoeuvre
+%% Close-Range Rendezvous: Perform Rendezvous Manoeuvre
 
 % Define Initial Conditions
 x70 = 1;                % initial mass ratio
@@ -170,7 +188,7 @@ event_odefun = 1;       % 1 means it'll stop at saturation
 
 % Perform Hybrid-Predictive Feedback Control
 if opt.show_progress
-    pbar = waitbar(0, 'Performing the Direct Approach Rendezvous');
+    pbar = waitbar(0, 'Performing the Close-Range Rendezvous');
 end
 [tspan_ctrl_DA, TCC_ctrl_DA] = odeHamHPC(@(t, TCC) HybridPredictiveControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_DA, u_lim, DU, TU, check_times_DA, prediction_delta_DA, N_inner_DA, misalignment0),...
@@ -179,7 +197,7 @@ end
 % Check if Terminal Conditions are reached
 [~, terminal_flag] = is_terminal_distance(tspan_ctrl_DA(end), TCC_ctrl_DA(end, :));
 if terminal_flag
-    error('Reached Conditions under Saturation!')
+    error('Reached Communication Point in Saturation!')
 end
 
 % Define stopSaturationTime
@@ -205,22 +223,19 @@ if verbose
 end
 
 
-%% Terminal Trajectory: Chaser Backwards Propagation
-
-% Define Natural Drift Propagation Settings
-optODE_back = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_back(t, Y));
+%% Terminal Approach: Chaser Backwards Propagation
 
 % Define the Backwards Drift tspan
 tspan_back = linspace(tf, t0 + (tf-t0)/2, opt.N);
 
 % Define Opposite Arrival Point
-% if ~direct_mating
+if ~direct_mating
 rhof_LVLH = -final_dist * TCC_T0(7:9)'/norm(TCC_T0(7:9));
 rhodotf_LVLH = -final_vel * TCC_T0(7:9)'/norm(TCC_T0(7:9));
-% else
-%     rhof_LVLH = final_dist * TCC_T0(7:9)'/norm(TCC_T0(7:9));
-%     rhodotf_LVLH = final_vel * TCC_T0(7:9)'/norm(TCC_T0(7:9));
-% end
+else
+    rhof_LVLH = final_dist * TCC_T0(7:9)'/norm(TCC_T0(7:9));
+    rhodotf_LVLH = final_vel * TCC_T0(7:9)'/norm(TCC_T0(7:9));
+end
 RHOf_LVLH = [rhof_LVLH; rhodotf_LVLH];
 
 % Define Final Conditions
@@ -318,9 +333,9 @@ for branch = 1 : max_branches
 
     % Set the Via Points and Interpolate the Reference Terminal Trajectory
     if branch == 1
-        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt, rho1_0, t1_0, l_hat_0] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1]);
+        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt, rho1_0, t1_0, l_hat_0] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], exclusion_radius);
     else
-        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], NaN, t1_0, NaN);
+        [RHOdPPsLVLH_rt, viapoints_rt, t_viapoints_rt] = ReferenceTrajectory(TCC_rt0(1:12), TC0_backdrift, t0_rt, t0_backdrift, [1, 1], exclusion_radius, NaN, t1_0, NaN);
     end
 
     % testPPs(RHOdPPsLVLH_rt(1:3), linspace(t0_rt, t0_backdrift, 1000));
@@ -339,8 +354,7 @@ for branch = 1 : max_branches
     % Define timespan
     tspan_rt = [t0_rt : prop_step : tf_rt]';
 
-    % Check that tspan has more than two elements -> otherwise ode()
-    % interprets it incorrectly!
+    % Check that tspan has more than two elements -> otherwise ode() interprets it incorrectly!
     if length(tspan_rt) < 3
         tspan_rt = [t0_rt; (t0_rt+tf_rt)/2; tf_rt];
     end
@@ -816,7 +830,11 @@ x7f = Y_ctrl(end, 13);
 % Define Forward Drift Propagation Parameters
 tspan_drift = linspace(tspan_ctrl(end), tf + abs(tf-tspan_ctrl(end)), opt.N);                   % define the Forward Drift tspan
 TC0_drift = TCC_ctrl(end, 1:12);                                                                % define Initial Conditions
-optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_fwd(t, Y));     % define options
+if scenario == "docking"
+    optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_fwd_docking(t, Y));     % define options
+elseif scenario == "berthing"
+    optODE_fwd = odeset('RelTol', 1e-9, 'AbsTol', 1e-9, 'Events', @(t, Y) driftstop_fwd_berthing(t, Y));     % define options
+end
 
 % Perform the Final Natural Drift of the Chaser
 [tspan_drift, TC_drift, t_fwdstop, ~, ~] = ode113(@(t, TC) NaturalRelativeMotion(t, TC, EarthPPsMCI, SunPPsMCI, ...
@@ -872,9 +890,8 @@ if include_realignment_manoeuvre
     
     for i = 1 : M_drift
         
-        if final_velocity == -1e-5          % DOCKING SCENARIO
+        if scenario == "docking"
             
-            % xc_LVLH = [-1, 0, 0]';      % xc aligned with direction opposite to engines
             xc_LVLH = [1, 0, 0]';      % xc aligned with direction opposite to engines
         
             % Rotate from LVLH to MCI
@@ -895,7 +912,7 @@ if include_realignment_manoeuvre
             yc_MCI_drift(i, :) = cross(ref3_MCI, xc_MCI_drift(i, :)')/norm(cross(ref3_MCI, xc_MCI_drift(i, :)'));
             zc_MCI_drift(i, :) = cross(xc_MCI_drift(i, :)', yc_MCI_drift(i, :)');
             
-        elseif final_velocity == -5e-6      % BERTHING SCENARIO
+        elseif scenario == "berthing"
 
             xc_LVLH = [0, 0, -1]';
             zc_LVLH = [-1, 0, 0]';

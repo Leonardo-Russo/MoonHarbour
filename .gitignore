@@ -10,3 +10,4 @@ Results/**/*.mat
 debug.mat
 Data/Utils/main.mat
 Data/Utils/*.mat
+Data/Utils/berthing.mat

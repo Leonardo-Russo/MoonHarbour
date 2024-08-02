@@ -10,49 +10,44 @@ addpath('Data/Planets/')
 addpath('Data/Materials/')
 addpath('Data/Ephemeris/')
 
-
 %% Perform the Simulation
 
-sampling_time = 60;                     % seconds
+sampling_time = 180;                     % seconds
 include_actuation = true;
-final_velocity = -1e-5;                 % -1 cm/s
-% final_velocity = -5e-6;                 % -5 mm/s
+scenario = "docking";
 verbose = true;
 misalignment_type = "oscillating";
 state_perturbation_flag = true;
 engine_failure_flag = true;
 workspace_path = "Data/Utils/main.mat";
 
-% parfmain(sampling_time, include_actuation, final_velocity, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path);
+parfmain(scenario, sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag, workspace_path);
 
 %% Visualize the Results
 clc
 close all
 
-% load('Data/Utils/berthing.mat');
-% load("Results/nominal_docking/main.mat");
+load("Data/Utils/main.mat");
 
-% load('Results/berthing_60s_act_combined/main.mat');
+sim_from_mc = false;
 
-sim_from_mc = true;
-
-sim_id = "berthing_60s_act";
-load(strcat("Simulations/Results/", sim_id, "/", sim_id, ".mat"), 'data');
-sim_n = 84;
-
-[RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
-    renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
-    qe0, qe, Tc, Ta, omega_e, omega_e_norms, angle_e, betas, gammas, acc, ...
-    deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
-    Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
-    omega_e_drift, omega_e_drift_norms, angle_e_drift] = workspace_from_data(data(sim_n));
-
-sec2hrs = 1/3600;
-runtime = 0;            % I don't know the runtime :(
-g0 = 9.80665;           % m/s^2
-u_limit = 5e-5*g0;      % m/s^2
-MU = 1/DU^2;
-opt.include_actuation = true;
+% sim_id = "berthing_60s_act";
+% load(strcat("Simulations/Results/", sim_id, "/", sim_id, ".mat"), 'data');
+% sim_n = 84;
+% 
+% [RHO_LVLH, M_ctrl_DA, M_ctrl, M_drift, DU, TU, RHOd_LVLH, dist, vel, ...
+%     renderdata, TCC, Xt_MCI, RHO_MCI, u, u_norms, f_norms, kp_store, ...
+%     qe0, qe, Tc, Ta, omega_e, omega_e_norms, angle_e, betas, gammas, acc, ...
+%     deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
+%     Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
+%     omega_e_drift, omega_e_drift_norms, angle_e_drift] = workspace_from_data(data(sim_n));
+% 
+% sec2hrs = 1/3600;
+% runtime = 0;            % I don't know the runtime :(
+% g0 = 9.80665;           % m/s^2
+% u_limit = 5e-5*g0;      % m/s^2
+% MU = 1/DU^2;
+% opt.include_actuation = true;
 
 
 opt.saveplots = true;

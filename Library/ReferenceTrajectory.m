@@ -1,4 +1,4 @@
-function [RHOrefPPs, viapoints, tspan_viapoints, rho_1, t1, l_hat] = ReferenceTrajectory(TC0, TCf, t0, tf, BC, rho_1, t1, l_hat)
+function [RHOrefPPs, viapoints, tspan_viapoints, rho_1, t1, l_hat] = ReferenceTrajectory(TC0, TCf, t0, tf, BC, exclusion_radius, rho_1, t1, l_hat)
 % Description: this function computes reference trajectory that should be followed by
 % the chaser during the approach to the target (rendezvous). This is
 % carried out in target LVLH frame, so we work with relative distances
@@ -17,17 +17,20 @@ function [RHOrefPPs, viapoints, tspan_viapoints, rho_1, t1, l_hat] = ReferenceTr
 % t0 and tf must be nondimensional.
 % TU must be expressed in seconds.
 
+global DU
+
 if nargin < 6
-    rho_1 = NaN;
+    exclusion_radius = 15e-3/DU;
 end
 if nargin < 7
-    t1 = NaN;
+    rho_1 = NaN;
 end
 if nargin < 8
+    t1 = NaN;
+end
+if nargin < 9
     l_hat = NaN;
 end
-
-global DU
 
 % Initial conditions
 rho_r0 = TC0(7);
@@ -69,13 +72,13 @@ rho_h = Chebspace(rho_h0, rho_hf, pi, finalAngle_h, N)';
 
 % Compute Reference trajectory (spline)
 if all(BC == [1, 1])
-    rho_rPPs = csape(tspan_viapoints,[rhodot_r0 rho_r' rhodot_rf], BC); 
-    rho_tPPs = csape(tspan_viapoints,[rhodot_t0 rho_t' rhodot_tf], BC); 
-    rho_hPPs = csape(tspan_viapoints,[rhodot_h0 rho_h' rhodot_hf], BC); 
+    rho_rPPs = csape(tspan_viapoints,[rhodot_r0 rho_r' rhodot_rf], [1, 1]); 
+    rho_tPPs = csape(tspan_viapoints,[rhodot_t0 rho_t' rhodot_tf], [1, 1]); 
+    rho_hPPs = csape(tspan_viapoints,[rhodot_h0 rho_h' rhodot_hf], [1, 1]); 
 else
-    rho_rPPs = csape(tspan_viapoints,[0 rho_r' rhodot_rf], BC); 
-    rho_tPPs = csape(tspan_viapoints,[0 rho_t' rhodot_tf], BC); 
-    rho_hPPs = csape(tspan_viapoints,[0 rho_h' rhodot_hf], BC);
+    rho_rPPs = csape(tspan_viapoints,[0 rho_r' rhodot_rf], [1, 1]); 
+    rho_tPPs = csape(tspan_viapoints,[0 rho_t' rhodot_tf], [1, 1]); 
+    rho_hPPs = csape(tspan_viapoints,[0 rho_h' rhodot_hf], [1, 1]);
 end
 
 RHOrefPPs = [rho_rPPs; rho_tPPs; rho_hPPs];
@@ -86,14 +89,14 @@ M = 1000;   % n° of points for sample tspan
 tspan_check = linspace(t0, tf, M)';
 dist = zeros(M, 1);
 
-sphere_radius = 10e-3/DU;           % 12m of emergency sphere radius
-emergency_radius = 10e-3/DU;
+% Assume that the Sphere Radius is the same as the Exclusion Radius
+sphere_radius = exclusion_radius;
 
 % Check for Emergency Sphere Intersection
 collision = 0;    
 for j = 1 : M
     dist(j) = norm(ppsval(RHOrefPPs, tspan_check(j)));
-    if dist(j) <= emergency_radius
+    if dist(j) <= exclusion_radius
         collision = 1;
     end
 end
@@ -135,7 +138,11 @@ if collision
     if t1 > t0
     
         % Compute Reference Trajectory
-        TangentPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
+        if all(BC == [1, 1])
+            TangentPPs = TangentInterpolation(rho_0, rho_f, rho_1, rhodot_0, rhodot_f, t0, tf, t1, l_hat);
+        else
+            TangentPPs = TangentInterpolation(rho_0, rho_f, rho_1, zeros(3, 1), rhodot_f, t0, tf, t1, l_hat);
+        end
     
         if ~isempty(TangentPPs)
 
