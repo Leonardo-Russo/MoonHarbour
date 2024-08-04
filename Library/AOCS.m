@@ -150,17 +150,18 @@ end
 qb0 = Xb(1);
 qb = Xb(2:4);
 
-% Define Chaser Parameters - ATV
-Jc = [2652.57, 0, 0;...
-      0, 2693.03, 0;...
-      0, 0, 2693.03]*1e-6/(DU^2*MU);       % (kg) m^2
+% Define Chaser Parameters
+R = 1.5;        % m
+L = 5.5;        % m
+M = 3000;       % kg
+Ia = M*R^2/2;
+Ir = M/12*(3*R^2+L^2);
+Jc = diag([Ia, Ir, Ir])*1e-6/(DU^2*MU);     % kg m^2
 
-% @book{Fehse_2003, place={Cambridge}, series={Cambridge Aerospace Series}, title={Automated Rendezvous and Docking of Spacecraft}, publisher={Cambridge University Press}, author={Fehse, Wigbert}, year={2003}, collection={Cambridge Aerospace Series}} <div></div>
-
-% % Define Chaser Parameters - old parameters
-% Jc = [900, 50, -100;...
-%       50, 1100, 150;...
-%       -100, 150, 1250]*1e-6/(DU^2*MU);       % (kg) m^2
+% % @book{Fehse_2003, place={Cambridge}, series={Cambridge Aerospace Series}, title={Automated Rendezvous and Docking of Spacecraft}, publisher={Cambridge University Press}, author={Fehse, Wigbert}, year={2003}, collection={Cambridge Aerospace Series}}
+% Jc = [2652.57, 0, 0;...
+%       0, 2693.03, 0;...
+%       0, 0, 2693.03]*1e-6/(DU^2*MU);       % (kg) m^2
 
 % Gain Parameters   
 xi = 1;

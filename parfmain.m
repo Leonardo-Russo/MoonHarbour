@@ -230,8 +230,8 @@ tspan_back = linspace(tf, t0 + (tf-t0)/2, opt.N);
 
 % Define Opposite Arrival Point
 if ~direct_mating
-rhof_LVLH = -final_dist * TCC_T0(7:9)'/norm(TCC_T0(7:9));
-rhodotf_LVLH = -final_vel * TCC_T0(7:9)'/norm(TCC_T0(7:9));
+    rhof_LVLH = -final_dist * TCC_T0(7:9)'/norm(TCC_T0(7:9));
+    rhodotf_LVLH = -final_vel * TCC_T0(7:9)'/norm(TCC_T0(7:9));
 else
     rhof_LVLH = final_dist * TCC_T0(7:9)'/norm(TCC_T0(7:9));
     rhodotf_LVLH = final_vel * TCC_T0(7:9)'/norm(TCC_T0(7:9));
@@ -892,7 +892,7 @@ if include_realignment_manoeuvre
         
         if scenario == "docking"
             
-            xc_LVLH = [1, 0, 0]';      % xc aligned with direction opposite to engines
+            xc_LVLH = rhof_LVLH / norm(rhof_LVLH);
         
             % Rotate from LVLH to MCI
             [R_LVLH2MCI, ~] = get_rotLVLH2MCI(Xt_MCI_drift(i, :)', tspan_drift(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);
@@ -914,9 +914,9 @@ if include_realignment_manoeuvre
             
         elseif scenario == "berthing"
 
-            xc_LVLH = [0, 0, -1]';
-            zc_LVLH = [-1, 0, 0]';
-            yc_LVLH = cross(zc_LVLH, xc_LVLH) / norm(cross(zc_LVLH, xc_LVLH));
+            yc_LVLH = -rhof_LVLH / norm(rhof_LVLH);
+            zc_LVLH = l_hat_0;
+            xc_LVLH = cross(yc_LVLH, zc_LVLH) / norm(cross(yc_LVLH, zc_LVLH));
         
             % Rotate from LVLH to MCI
             [R_LVLH2MCI, ~] = get_rotLVLH2MCI(Xt_MCI_drift(i, :)', tspan_drift(i), EarthPPsMCI, SunPPsMCI, MoonPPsECI, muE, muS, deltaE, psiM, deltaM);

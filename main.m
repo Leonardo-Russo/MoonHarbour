@@ -14,7 +14,7 @@ addpath('Data/Ephemeris/')
 
 sampling_time = 180;                     % seconds
 include_actuation = true;
-scenario = "docking";
+scenario = "berthing";
 verbose = true;
 misalignment_type = "oscillating";
 state_perturbation_flag = true;
@@ -58,31 +58,6 @@ rdv_with_drift = 1;
 
 res = '-r600';
 
-% % TEMP
-% for kk = 1 : M_ctrl
-%     qe0(kk) = qe0(kk) / norm([qe0(kk), qe(kk, :)]);
-%     qe(kk, :) = qe(kk, :) / norm([qe0(kk), qe(kk, :)]);
-% end
-% 
-% qe_norma = zeros(M_ctrl+M_drift, 1);
-% for jj = 1 : M_ctrl
-%     qe_norma(jj) = norm([qe0(jj), qe(jj, :)]);
-% end
-% for jj = 1 : M_drift
-%     qe_norma(jj+M_ctrl) = norm([qe0_drift(jj), qe_drift(jj, :)]);
-% end
-% fig = figure('Name', 'Norma dei Quaternioni');
-% plot((tspan(M_ctrl_DA+1:end)-t0)*TU*sec2hrs, qe_norma, 'color', '#4195e8', 'LineWidth', 1.5)
-% xlabel('$t \ [$hrs$]$', 'interpreter', 'latex', 'fontsize', 12)
-% ylabel('$|q_e| \ [$km$]$', 'interpreter', 'latex', 'fontsize', 12)
-% % xaxis([(tspan(1)-t0)*TU*sec2hrs, (tspan(end)-t0)*TU*sec2hrs])
-% grid on
-% if opt.saveplots
-%     print(fig, 'Output/Plots/Quaternion Norm.png', '-dpng', res);
-% end
-% return
-
-
 dist_ref = zeros(size(RHOd_LVLH, 1), 1);
 vel_ref = zeros(size(RHOd_LVLH, 1), 1);
 for jj = 1 : size(RHOd_LVLH, 1)
@@ -111,11 +86,16 @@ Cd_LVLH_T = DrawTrajLVLH3D(RHOd_LVLH(M_ctrl_DA+1:end, 1:3)*DU, '#6efad2', '-.');
 % legend([C_LVLH_T, Cd_LVLH_T], {'Chaser Trajectory', 'Reference Trajectory'}, 'location', 'best')
 view(-55, 15)
 % view(0, 90)
+if scenario == "berthing"
+    yc_LVLH = -rhof_LVLH / norm(rhof_LVLH);
+    zc_LVLH = l_hat_0;
+    xc_LVLH = cross(yc_LVLH, zc_LVLH) / norm(cross(yc_LVLH, zc_LVLH));
+    arm = show_arm(0.001, 0.004, 9e-3*rhof_LVLH/norm(rhof_LVLH), R3(pi/2)*[xc_LVLH'; yc_LVLH'; zc_LVLH'], [58, 107, 176]/norm([58, 107, 176]));
+end
 delete(Cd_LVLH_T)
 if opt.saveplots
     print(fig, 'Output/Plots/Trajectory Terminal LVLH.png', '-dpng', res);
 end
-
 
 % Chaser LVLH State Components
 fig1 = figure('name', 'Chaser LVLH State Component: rho_r');
