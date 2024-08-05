@@ -12,7 +12,7 @@ addpath('Data/Ephemeris/')
 
 %% Perform the Simulation
 
-sampling_time = 180;                     % seconds
+sampling_time = 60;                     % seconds
 include_actuation = true;
 scenario = "berthing";
 verbose = true;
