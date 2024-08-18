@@ -14,7 +14,7 @@ addpath('../Data/Ephemeris/')
 %% Post-Processing
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "berthing_60s_act_iac";        % specific results identifier
+sim_id_tot = "berthing_iac";        % specific results identifier
 
 load(strcat(root_dir, "/", sim_id_tot, "/", sim_id_tot, ".mat"));
 
@@ -79,4 +79,4 @@ end
 %     end
 % end
 
-save(strcat(root_dir, "/", sim_id_tot, "/", sim_id_tot, ".mat"), 'sim_id', 'sampling_time', 'final_velocity', 'misalignment_type', 'engine_failure_flag', 'state_perturbation_flag', 'include_actuation', 'data', 'table', 'MC');
+save(strcat(root_dir, "/", sim_id_tot, "/", sim_id_tot, ".mat"), 'sim_id', 'sampling_time', 'scenario', 'misalignment_type', 'engine_failure_flag', 'state_perturbation_flag', 'include_actuation', 'data', 'table', 'MC');

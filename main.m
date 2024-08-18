@@ -12,7 +12,7 @@ addpath('Data/Ephemeris/')
 
 %% Perform the Simulation
 
-sampling_time = 60;                     % seconds
+sampling_time = 180;                     % seconds
 include_actuation = true;
 scenario = "berthing";
 verbose = true;
@@ -50,7 +50,7 @@ sim_from_mc = false;
 % opt.include_actuation = true;
 
 
-opt.saveplots = true;
+opt.saveplots = false;
 opt.additional_plots = false;
 include_realignment_manoeuvre = 1;
 direct_approach_results = 1;

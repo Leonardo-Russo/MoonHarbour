@@ -14,7 +14,7 @@ addpath('../Data/Utils/')
 
 
 % Define the n° of simulations
-MC = 32;
+MC = 104;
 
 % Preallocate Data
 data = struct('status', [], 'RHO_LVLH', [], 'M_ctrl_DA', [], 'DU', [], 'RHOd_LVLH', [], 'color', [], 'dist', [], 'vel', [], 'successful', [], 'deltaState', [], 'failure_times', [], 'misalignments', [], ...
@@ -42,16 +42,17 @@ if isempty(pool)
 end
 
 % Define Simulation Options
-sim_id = "berthing_60s_act_iacs";
+sim_id = "berthing_iac";
 mkdir(strcat("Results/", sim_id));
+
 sampling_time = 60;                     % seconds
+include_actuation = true;
+scenario = "berthing";
 verbose = true;
-% final_velocity = -1e-5;                 % -1 cm/s
-final_velocity = -5e-6;                 % -5 mm/s
 misalignment_type = "oscillating";
 state_perturbation_flag = true;
 engine_failure_flag = true;
-include_actuation = true;
+workspace_path = "Data/Utils/main.mat";
 
 parfor (mc = 1 : MC, pool.NumWorkers)
 % for mc = 1 : MC
@@ -65,7 +66,7 @@ parfor (mc = 1 : MC, pool.NumWorkers)
             qe0, qe, Tc, Ta, omega_e, omega_e_norms, angle_e, betas, gammas, acc, ...
             deltaState, tspan, tspan_ctrl, Y_ctrl, t0, tf, failure_times, misalignments, ...
             Y_drift, Q_N2C_drift, qe0_drift, qe_drift, Tc_drift, Ta_drift, ...
-            omega_e_drift, omega_e_drift_norms, angle_e_drift] = parfmain(sampling_time, include_actuation, final_velocity, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
+            omega_e_drift, omega_e_drift_norms, angle_e_drift] = parfmain(scenario, sampling_time, include_actuation, verbose, misalignment_type, state_perturbation_flag, engine_failure_flag);
 
         is_safe = check_min_distance(dist, DU, M_ctrl_DA, M_ctrl, 9.5);
 

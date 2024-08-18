@@ -126,8 +126,8 @@ u = [ur; ut; uh];
 % Apply Emergency Manoeuvre
 if emergency_manoeuvre_flag
 
-    emergency_min_distance = 9.8*1e-3/DU;           % 9.8 m
-    emergency_max_distance = 10.2*1e-3/DU;          % 10.2 m
+    emergency_min_distance = 14.8*1e-3/DU;           % 9.8 m
+    emergency_max_distance = 15.2*1e-3/DU;          % 10.2 m
     
     if isempty(emergency_hysteresis)
         if norm(rho_LVLH) < emergency_min_distance

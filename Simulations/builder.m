@@ -12,7 +12,7 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "berthing_60s";        % specific results identifier
+sim_id_tot = "berthing_iac";        % specific results identifier
 
 % Berthing 60s act
 % - 84 is the emergency manoeuvre

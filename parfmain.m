@@ -319,6 +319,8 @@ Y0_rt = [TCC_rt0; Xb0; w_0; omegas_0];     % AOCS extended State
 opt.initially_aligned = true;
 omega_n = 0.1*TU;   % 0.1 rad/s
 
+global emergency_hysteresis
+
 
 % Debug Stuff
 debug = 0;
@@ -359,6 +361,12 @@ for branch = 1 : max_branches
         tspan_rt = [t0_rt; (t0_rt+tf_rt)/2; tf_rt];
     end
 
+    if branch == 1
+        emergency_hysteresis = 0;
+    else
+        emergency_hysteresis = emergency_hysteresis_0;
+    end
+
     % % Propagate to Final Propagation Time - ode113
     % [~, TCC_rt] = ode113(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
     %     muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, define_misalignment_error("null"), 0, 1, emergency_manoeuvre_flag, rho0_LVLH, rhof_LVLH), ...
@@ -366,8 +374,16 @@ for branch = 1 : max_branches
 
     % Propagate to Final Propagation Time - odeHam
     [tspan_rt, TCC_rt] = odeHamHPC(@(t, TCC) NaturalFeedbackControl(t, TCC, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, define_misalignment_error("null"), 0, 1, emergency_manoeuvre_flag, rho0_LVLH, rhof_LVLH), ...
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, define_misalignment_error("null"), 0, 0, emergency_manoeuvre_flag, rho0_LVLH, rhof_LVLH), ...
         [t0_rt, tf_rt], TCC_rt0, length(tspan_rt)-1);
+    
+    % Save last flag of Emergency Hysteresis
+    if branch == 1
+        emergency_hysteresis_00 = 0;
+    else
+        emergency_hysteresis_00 = emergency_hysteresis_0;
+    end
+    emergency_hysteresis_0 = emergency_hysteresis;
 
     % Interpolate Trajectory
     TCC_PPs = get_statePP(tspan_rt, TCC_rt);
@@ -394,6 +410,7 @@ for branch = 1 : max_branches
     for i = 1 : M_rt
 
         % Retrieve Thrust Acceleration in LVLH
+        emergency_hysteresis = emergency_hysteresis_00;
         [~, ~, ~, ~, u_rt(i, :), ~, ~, ~, ~] = NaturalFeedbackControl(tspan_rt(i), TCC_rt(i, :), EarthPPsMCI, SunPPsMCI, muM, ...
             muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, RHOdPPsLVLH_rt, kp, u_lim, DU, TU, define_misalignment_error("null"), 0, 0, emergency_manoeuvre_flag, rho0_LVLH, rhof_LVLH);
         xc_LVLH = u_rt(i, :)' / norm(u_rt(i, :));        % normalize to find xc versor in LVLH
