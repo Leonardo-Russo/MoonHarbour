@@ -72,13 +72,13 @@ rho_h = Chebspace(rho_h0, rho_hf, pi, finalAngle_h, N)';
 
 % Compute Reference trajectory (spline)
 if all(BC == [1, 1])
-    rho_rPPs = csape(tspan_viapoints,[rhodot_r0 rho_r' rhodot_rf], [1, 1]); 
-    rho_tPPs = csape(tspan_viapoints,[rhodot_t0 rho_t' rhodot_tf], [1, 1]); 
-    rho_hPPs = csape(tspan_viapoints,[rhodot_h0 rho_h' rhodot_hf], [1, 1]); 
+    rho_rPPs = csape(tspan_viapoints, [rhodot_r0 rho_r' rhodot_rf], [1, 1]); 
+    rho_tPPs = csape(tspan_viapoints, [rhodot_t0 rho_t' rhodot_tf], [1, 1]); 
+    rho_hPPs = csape(tspan_viapoints, [rhodot_h0 rho_h' rhodot_hf], [1, 1]); 
 else
-    rho_rPPs = csape(tspan_viapoints,[0 rho_r' rhodot_rf], [1, 1]); 
-    rho_tPPs = csape(tspan_viapoints,[0 rho_t' rhodot_tf], [1, 1]); 
-    rho_hPPs = csape(tspan_viapoints,[0 rho_h' rhodot_hf], [1, 1]);
+    rho_rPPs = csape(tspan_viapoints, [0 rho_r' rhodot_rf], [1, 1]); 
+    rho_tPPs = csape(tspan_viapoints, [0 rho_t' rhodot_tf], [1, 1]); 
+    rho_hPPs = csape(tspan_viapoints, [0 rho_h' rhodot_hf], [1, 1]);
 end
 
 RHOrefPPs = [rho_rPPs; rho_tPPs; rho_hPPs];

@@ -202,7 +202,8 @@ Mc = 0;         % no external torques applied on the chaser
 % Compute Commanded Torque
 Tc = skew(w)*Jc*w - Mc + Jc*wc_dot - Jc*invA*B*wd - sign_qe0_0*Jc*invA*qe;
 
-Tc_max = 1/(1e6*DU^2/TU^2*MU);          % 1 Nm
+% Tc_max = 1/(1e6*DU^2/TU^2*MU);          % 1 Nm
+Tc_max = 5/(1e6*DU^2/TU^2*MU);          % 5 Nm
 if norm(Tc) > Tc_max
     Tc = Tc_max * (Tc/norm(Tc));
 end
@@ -302,47 +303,6 @@ ur = un_norm * (sin(gamma) * cos(beta) * sin(alpha_opt) + sin(gamma) * sin(beta)
 ut = un_norm * (-sin(gamma) * cos(beta) * cos(alpha_opt) + sin(gamma) * sin(beta) * sin(delta_opt) * sin(alpha_opt) + cos(gamma) * cos(delta_opt) * sin(alpha_opt));
 uh = un_norm * (-sin(gamma) * sin(beta) * cos(delta_opt) + cos(gamma) * sin(delta_opt));
 u = [ur; ut; uh];
-
-
-% % Apply Emergency Manoeuvre
-% if emergency_manoeuvre_flag && ~only_attitude
-% 
-%     emergency_min_distance = 9.8*1e-3/DU;           % 9.8 m
-%     emergency_max_distance = 10.2*1e-3/DU;          % 10.2 m
-% 
-%     if isempty(emergency_hysteresis)
-%         if norm(rho_LVLH) < emergency_min_distance
-%             emergency_hysteresis = 1;
-%         else
-%             emergency_hysteresis = 0;
-%         end
-%     end
-% 
-%     if emergency_hysteresis && norm(rho_LVLH) > emergency_max_distance  
-%         emergency_hysteresis = 0;
-%         fprintf('Emergency Manoeuvre: 1 -> 0\n');
-%     end
-% 
-%     if ~emergency_hysteresis && norm(rho_LVLH) < emergency_min_distance
-%         emergency_hysteresis = 1;
-%         fprintf('Emergency Manoeuvre: 0 -> 1\n');
-%     end
-% 
-%     if norm(rho_LVLH) < emergency_min_distance
-%         l_hat = cross(rho_0, rho_f) / norm(cross(rho_0, rho_f));
-%         lambda0_hat = cross(l_hat, rho_0)/norm(rho_0);
-%         % u = u_lim * lambda0_hat;
-%         u = u_norm * lambda0_hat;
-%         fprintf('Applied Emergency Manoeuvre: dist = %.3f m\n', norm(rho_LVLH)*DU*1e3);
-%     elseif norm(rho_LVLH) >= emergency_min_distance && norm(rho_LVLH) <= emergency_max_distance && emergency_hysteresis
-%         l_hat = cross(rho_0, rho_f) / norm(cross(rho_0, rho_f));
-%         lambda0_hat = cross(l_hat, rho_0)/norm(rho_0);
-%         % u = u_lim * lambda0_hat;
-%         u = u_norm * lambda0_hat;
-%         fprintf('Applied Emergency Manoeuvre: dist = %.3f m\n', norm(rho_LVLH)*DU*1e3);
-%     end
-% 
-% end
 
 
 % Compute Mass Ratio Derivative

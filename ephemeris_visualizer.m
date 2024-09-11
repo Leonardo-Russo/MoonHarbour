@@ -68,6 +68,11 @@ everything = 0;
 % Load Data from Ephemeris - states are provided in ECI
 load('Ephemeris.mat', 'stateDSG', 'stateMoon', 'stateSun', 'time');
 
+fontsize_labels = 18;
+fontsize_axes = 16;
+fontsize_legend = 15;
+line_width = 1.2;
+
 if everything
 
     Npoints = size(stateDSG, 1);
@@ -210,6 +215,11 @@ stateDSG_SYN = MCI2SYN(stateDSG_MCI, time, MoonPPsECI, deltaE, psiM, deltaM, 1, 
 % Plot the trajectory in the synodic frame
 fig_syn = figure('Name', 'Trajectory in Synodic Frame');
 DrawTrajMCI3D(stateDSG_SYN(:, 1:3)*DU, '#03adfc');
+xlabel('$X \ [$km$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+ylabel('$Y \ [$km$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+zlabel('$Z \ [$km$]$', 'interpreter', 'latex', 'fontsize', fontsize_labels)
+set(gca, 'FontSize', fontsize_axes);
+view(40, 20)
 savefig(fig_syn, 'reference_trajectory_SYN.fig');
 print(fig_syn, 'reference_trajectory_SYN.png', '-dpng', '-r600');
 

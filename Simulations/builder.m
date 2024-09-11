@@ -12,24 +12,38 @@ addpath('../Data/Materials/')
 addpath('../Data/Ephemeris/')
 
 root_dir = "Results";       % root results folder
-sim_id_tot = "berthing_iac";        % specific results identifier
+sim_id_tot = "berthing_iac_60s_EM";        % specific results identifier
+
+load(strcat(root_dir, "/", sim_id_tot, "/", sim_id_tot, ".mat"));
 
 % Berthing 60s act
 % - 84 is the emergency manoeuvre
 
 %% Extract the Results
 
-load(strcat(root_dir, "/", sim_id_tot, "/", sim_id_tot, ".mat"));
-
 res = '-r600';
 fontsize_labels = 24;
 fontsize_axes = 24;
 line_width = 2;
-fontsize_labels = 12;
-fontsize_axes = 10;
+fontsize_labels = 18;
+fontsize_axes = 16;
+fontsize_legend = 15;
 line_width = 1.2;
 
+successful_dist_tol = 14e-2;     % 15 cm
+successful_vel_tol = 1e-2;      % 1 cm/s
+
 close all
+
+for k = 1 : MC
+        if norm(data(k).deltaState(1:3)) <= successful_dist_tol && norm(data(k).deltaState(4:6)) <= successful_vel_tol
+            data(k).status = true;
+            table(k, 2) = 1;
+        else
+            data(k).status = false;
+            table(k, 2) = 0;
+        end
+end
 
 % Create the Results table
 results_table = array2table(table, 'VariableNames', {'id', 'status', 'dr (m)', 'dtheta (m)', 'dh (m)', 'dv_r (m/s)', 'dv_theta (m/s)', 'dv_h (m/s)', 'delta_rho (m)', 'delta_rhodot (m/s)', 'omega_ef (rad/s)', 'angle_e (deg)'});
@@ -80,7 +94,7 @@ rT = 5e-3;      % km - S/C approximated as a sphere of 5 meter radius
 I = imread('black.jpg');
 surface(rT*x, rT*y, rT*z, flipud(I), 'FaceColor', 'texturemap', 'EdgeColor', 'none', 'CDataMapping', 'direct')
 hold on
-radius = 10e-3;
+radius = 15e-3;
 surface(radius*x, radius*y, radius*z, 'FaceColor', '#ffcf82', 'EdgeColor', 'none', 'CDataMapping', 'direct', 'FaceAlpha', 0.2)
 view(-55, 15)
 % view(-50, 25)

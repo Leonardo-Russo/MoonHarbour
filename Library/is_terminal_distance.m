@@ -5,7 +5,8 @@ function [value, stop] = is_terminal_distance(~, state, terminal_dist)
 global DU
 
 if nargin < 3
-    terminal_dist = 100e-3/DU;
+    % terminal_dist = 100e-3/DU;
+    terminal_dist = 150e-3/DU;
 end
 
 rho_vect = state(7:9);

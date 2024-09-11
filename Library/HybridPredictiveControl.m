@@ -120,7 +120,7 @@ if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0
 
     % Perform the Propagation
     [tspan, ControlledRelativeState] = odeHamHPC(@(t, state) NaturalFeedbackControl(t, state, EarthPPsMCI, SunPPsMCI, muM, ...
-        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, 0, 0, 0, 0), ...     % we assume no emergency manoeuvre in this control
+        muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, 0, 0, 0, 0, 1), ...     % we assume no emergency manoeuvre in this control
         [t0_int, tf_int], TCC, N_inner_integration);
 
     % Predictive Propagation Post-Processing
@@ -131,7 +131,7 @@ if t > checkTimes(index) && verifiedTimes(index) == 0 && stopPrediction == 0
         [~, ~, ~, ~, u_future(:,s), ...
             ~, ~, ~, ~] = NaturalFeedbackControl(tspan(s), ...
             ControlledRelativeState(s,:), EarthPPsMCI, SunPPsMCI, muM, ...
-            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, 0, 0, 0, 0);
+            muE, muS, MoonPPsECI, deltaE, psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, 0, 0, 0, 0, 1);
         u_norms(s) = norm(u_future(:,s));
     end
     

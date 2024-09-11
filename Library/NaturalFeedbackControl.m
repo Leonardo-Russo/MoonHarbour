@@ -1,9 +1,9 @@
 function [dTCC, omega_LVLH, omegadot_LVLH, apc_LVLHt, u, rhod_LVLH,...
     rhodotd_LVLH, rhoddotd_LVLH, f_norm] = NaturalFeedbackControl(t, ...
     TCC, EarthPPsMCI, SunPPsMCI, muM, muE, muS, MoonPPsECI, deltaE, ...
-    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, is_col, emergency_manoeuvre_flag, rho_0, rho_f)
+    psiM, deltaM, omegadotPPsLVLH, t0, tf, ppXd, kp, u_lim, DU, TU, misalignment, clock, is_col, emergency_manoeuvre_flag, rho_0, rho_f, post_processing_flag)
 
-persistent emergency_hysteresis
+global emergency_hysteresis emergency_hysteresis_stack
 
 % ----- Natural Relative Motion ----- %
 
@@ -126,25 +126,21 @@ u = [ur; ut; uh];
 % Apply Emergency Manoeuvre
 if emergency_manoeuvre_flag
 
-    emergency_min_distance = 14.8*1e-3/DU;           % 9.8 m
-    emergency_max_distance = 15.2*1e-3/DU;          % 10.2 m
+    emergency_min_distance = 14.8*1e-3/DU;          % 14.8 m
+    emergency_max_distance = 15.2*1e-3/DU;          % 15.2 m
     
-    if isempty(emergency_hysteresis)
-        if norm(rho_LVLH) < emergency_min_distance
-            emergency_hysteresis = 1;
-        else
-            emergency_hysteresis = 0;
-        end
-    end
-    
-    if emergency_hysteresis && norm(rho_LVLH) > emergency_max_distance  
+    if emergency_hysteresis == 1 && norm(rho_LVLH) > emergency_max_distance  
         emergency_hysteresis = 0;
         fprintf('Emergency Manoeuvre: 1 -> 0\n');
     end
     
-    if ~emergency_hysteresis && norm(rho_LVLH) < emergency_min_distance
+    if emergency_hysteresis == 0 && norm(rho_LVLH) < emergency_min_distance
         emergency_hysteresis = 1;
         fprintf('Emergency Manoeuvre: 0 -> 1\n');
+    end
+
+    if ~ post_processing_flag
+        emergency_hysteresis_stack = [emergency_hysteresis_stack; emergency_hysteresis];
     end
     
     if norm(rho_LVLH) < emergency_min_distance

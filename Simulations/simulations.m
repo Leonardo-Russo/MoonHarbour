@@ -14,7 +14,7 @@ addpath('../Data/Utils/')
 
 
 % Define the n° of simulations
-MC = 104;
+MC = 112;
 
 % Preallocate Data
 data = struct('status', [], 'RHO_LVLH', [], 'M_ctrl_DA', [], 'DU', [], 'RHOd_LVLH', [], 'color', [], 'dist', [], 'vel', [], 'successful', [], 'deltaState', [], 'failure_times', [], 'misalignments', [], ...
@@ -42,17 +42,19 @@ if isempty(pool)
 end
 
 % Define Simulation Options
-sim_id = "berthing_iac";
+sim_id = "docking_iac_60s_EM";
 mkdir(strcat("Results/", sim_id));
 
 sampling_time = 60;                     % seconds
 include_actuation = true;
-scenario = "berthing";
+scenario = "docking";
 verbose = true;
 misalignment_type = "oscillating";
 state_perturbation_flag = true;
 engine_failure_flag = true;
 workspace_path = "Data/Utils/main.mat";
+
+finished_sims = zeros(MC, 1);
 
 parfor (mc = 1 : MC, pool.NumWorkers)
 % for mc = 1 : MC
@@ -129,11 +131,15 @@ parfor (mc = 1 : MC, pool.NumWorkers)
     
         table(mc, :) = [mc, data(mc).status, deltaState, norm(deltaState(1:3)), norm(deltaState(4:6))];
 
+        finished_sims(mc) = 1;
+
     catch
 
         fprintf('Simulation n° %2d was not successful.\n', mc);
         data(mc).status = -1;
         table(mc, :) = [mc, data(mc).status, zeros(1, 8)];
+
+        finished_sims(mc) = 1;
 
     end
 
